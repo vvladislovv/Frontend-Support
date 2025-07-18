@@ -1,0 +1,30 @@
+import { useState, useEffect, useCallback } from 'react';
+import { getClients, getSystemLoad } from '../../api';
+import type { Client, SystemLoad } from '../../api';
+
+export function useAdminPanel() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [systemLoad, setSystemLoad] = useState<SystemLoad>({ cpu: 0, memory: 0 });
+  const [loading, setLoading] = useState<boolean>(true);
+  // error не используется в компоненте, убираем
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [clientsData, loadData] = await Promise.all([
+        getClients(),
+        getSystemLoad()
+      ]);
+      setClients(clientsData);
+      setSystemLoad(loadData);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  return {
+    clients, systemLoad, loading, refreshData: fetchData
+  };
+} 
