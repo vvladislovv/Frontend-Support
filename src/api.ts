@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { User, Bot, Ticket, Client, SystemLoad, Tariff } from "./types";
 
 const API_BASE_URL = "http://localhost:5173";
 const IS_DEV_MODE = true;
@@ -42,6 +43,7 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  photoUrl?: string;
 }
 
 export interface Bot {
@@ -82,7 +84,7 @@ const MOCK_DATA = {
     id: "1",
     email: "test@example.com",
     name: "Test User",
-    role: "user",
+    role: "admin", // Делаем пользователя админом для тестирования
   },
   bots: [
     {
@@ -94,8 +96,111 @@ const MOCK_DATA = {
       createdAt: "2024-01-15T10:30:00Z",
     },
   ],
-  tickets: [] as Ticket[],
-  clients: [] as Client[],
+  tickets: [
+    {
+      id: "1",
+      subject: "Проблема с ботом",
+      message: "Бот не отвечает на команды",
+      botId: "1",
+      telegramId: "123456789",
+      status: "open",
+      createdAt: "2024-01-16T10:30:00Z",
+    },
+    {
+      id: "2",
+      subject: "Ошибка в настройках",
+      message: "Не могу настроить автоответы",
+      botId: "1",
+      telegramId: "987654321",
+      status: "in_progress",
+      createdAt: "2024-01-15T14:20:00Z",
+    },
+    {
+      id: "3",
+      subject: "Запрос на новую функцию",
+      message: "Хотелось бы добавить интеграцию с CRM",
+      botId: "1",
+      telegramId: "555666777",
+      status: "closed",
+      createdAt: "2024-01-14T09:15:00Z",
+    },
+  ] as Ticket[],
+  clients: [
+    {
+      id: "1",
+      name: "Иван Петров",
+      email: "ivan.petrov@example.com",
+      active: true,
+      createdAt: "2024-01-10T08:30:00Z",
+    },
+    {
+      id: "2",
+      name: "Мария Сидорова",
+      email: "maria.sidorova@example.com",
+      active: true,
+      createdAt: "2024-01-12T14:15:00Z",
+    },
+    {
+      id: "3",
+      name: "Алексей Козлов",
+      email: "alexey.kozlov@example.com",
+      active: false,
+      createdAt: "2024-01-08T11:45:00Z",
+    },
+    {
+      id: "4",
+      name: "Елена Волкова",
+      email: "elena.volkova@example.com",
+      active: true,
+      createdAt: "2024-01-15T16:20:00Z",
+    },
+    {
+      id: "5",
+      name: "Дмитрий Новиков",
+      email: "dmitry.novikov@example.com",
+      active: false,
+      createdAt: "2024-01-05T09:10:00Z",
+    },
+  ] as Client[],
+  tariffs: [
+    {
+      id: "1",
+      name: "Базовый",
+      price: 990,
+      description: "Для начинающих пользователей",
+      active: true,
+      features: ["До 3 ботов", "Базовая поддержка", "100 сообщений/день"],
+      createdAt: "2024-01-01T00:00:00Z",
+    },
+    {
+      id: "2",
+      name: "Профессиональный",
+      price: 2990,
+      description: "Для активных пользователей",
+      active: true,
+      features: [
+        "До 10 ботов",
+        "Приоритетная поддержка",
+        "1000 сообщений/день",
+        "Аналитика",
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+    },
+    {
+      id: "3",
+      name: "Корпоративный",
+      price: 9990,
+      description: "Для больших команд",
+      active: true,
+      features: [
+        "Безлимитные боты",
+        "24/7 поддержка",
+        "Безлимитные сообщения",
+        "API доступ",
+      ],
+      createdAt: "2024-01-01T00:00:00Z",
+    },
+  ] as Tariff[],
 };
 
 // Mock API
@@ -132,6 +237,14 @@ const mockApi = {
     const token = localStorage.getItem("token");
     if (!token) throw new Error("Not authenticated");
     return MOCK_DATA.profile;
+  },
+
+  async uploadProfilePhoto(file: File) {
+    await delay(800);
+    // Симуляция загрузки фото
+    const photoUrl = URL.createObjectURL(file);
+    MOCK_DATA.profile = { ...MOCK_DATA.profile, photoUrl };
+    return { photoUrl };
   },
 
   async getBots() {
@@ -265,6 +378,41 @@ const mockApi = {
     await delay(500);
     return { id: Date.now().toString(), ...data };
   },
+
+  async getTariffs() {
+    await delay(400);
+    return [...MOCK_DATA.tariffs];
+  },
+
+  async createTariff(tariffData: Omit<Tariff, "id" | "createdAt">) {
+    await delay(600);
+    const newTariff: Tariff = {
+      id: Date.now().toString(),
+      ...tariffData,
+      createdAt: new Date().toISOString(),
+    };
+    MOCK_DATA.tariffs.push(newTariff);
+    return newTariff;
+  },
+
+  async updateTariff(
+    id: string,
+    tariffData: Partial<Omit<Tariff, "id" | "createdAt">>
+  ) {
+    await delay(500);
+    const index = MOCK_DATA.tariffs.findIndex((tariff) => tariff.id === id);
+    if (index === -1) throw new Error("Tariff not found");
+    MOCK_DATA.tariffs[index] = { ...MOCK_DATA.tariffs[index], ...tariffData };
+    return MOCK_DATA.tariffs[index];
+  },
+
+  async deleteTariff(id: string) {
+    await delay(400);
+    const index = MOCK_DATA.tariffs.findIndex((tariff) => tariff.id === id);
+    if (index === -1) throw new Error("Tariff not found");
+    MOCK_DATA.tariffs.splice(index, 1);
+    return { success: true };
+  },
 };
 
 // AUTH EXPORTS
@@ -315,6 +463,20 @@ export const getProfile = async (): Promise<User> => {
     return await mockApi.getProfile();
   }
   const response = await axios.get("/auth/me");
+  return response.data;
+};
+
+export const uploadProfilePhoto = async (file: File) => {
+  if (IS_DEV_MODE) {
+    return await mockApi.uploadProfilePhoto(file);
+  }
+  const formData = new FormData();
+  formData.append("photo", file);
+  const response = await axios.post("/auth/upload-photo", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return response.data;
 };
 
@@ -481,5 +643,43 @@ export const createReferralLink = async (data: any) => {
     return await mockApi.createReferralLink(data);
   }
   const response = await axios.post("/referrals/links", data);
+  return response.data;
+};
+
+// TARIFF EXPORTS
+export const getTariffs = async (): Promise<Tariff[]> => {
+  if (IS_DEV_MODE) {
+    return await mockApi.getTariffs();
+  }
+  const response = await axios.get("/admin/tariffs");
+  return response.data;
+};
+
+export const createTariff = async (
+  tariffData: Omit<Tariff, "id" | "createdAt">
+): Promise<Tariff> => {
+  if (IS_DEV_MODE) {
+    return await mockApi.createTariff(tariffData);
+  }
+  const response = await axios.post("/admin/tariffs", tariffData);
+  return response.data;
+};
+
+export const updateTariff = async (
+  id: string,
+  tariffData: Partial<Omit<Tariff, "id" | "createdAt">>
+): Promise<Tariff> => {
+  if (IS_DEV_MODE) {
+    return await mockApi.updateTariff(id, tariffData);
+  }
+  const response = await axios.patch(`/admin/tariffs/${id}`, tariffData);
+  return response.data;
+};
+
+export const deleteTariff = async (id: string) => {
+  if (IS_DEV_MODE) {
+    return await mockApi.deleteTariff(id);
+  }
+  const response = await axios.delete(`/admin/tariffs/${id}`);
   return response.data;
 };

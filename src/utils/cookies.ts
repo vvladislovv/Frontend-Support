@@ -1,13 +1,12 @@
-// Тестовый файл для проверки логики авторизации
+// Утилиты для работы с cookies
 
-// Функции для работы с cookies (копия из useAuth.ts)
-const setCookie = (name, value, days = 30) => {
+export const setCookie = (name: string, value: string, days: number = 30) => {
   const expires = new Date();
   expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
 };
 
-const getCookie = (name) => {
+export const getCookie = (name: string): string | null => {
   const nameEQ = name + "=";
   const ca = document.cookie.split(';');
   for (let i = 0; i < ca.length; i++) {
@@ -18,11 +17,12 @@ const getCookie = (name) => {
   return null;
 };
 
-const deleteCookie = (name) => {
+export const deleteCookie = (name: string) => {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
 
-const clearAllAuthCookies = () => {
+export const clearAllAuthCookies = () => {
+  // Удаляем все возможные cookies связанные с авторизацией
   const cookiesToDelete = [
     'auth_token',
     'token',
@@ -35,6 +35,7 @@ const clearAllAuthCookies = () => {
   ];
   
   cookiesToDelete.forEach(cookieName => {
+    // Удаляем с разными вариантами пути и домена
     deleteCookie(cookieName);
     document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
     document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname};`;
@@ -52,8 +53,14 @@ const clearAllAuthCookies = () => {
   });
 };
 
-console.log('Тестовые функции для работы с cookies загружены');
-console.log('Для тестирования:');
-console.log('1. setCookie("auth_token", "test123") - установить cookie');
-console.log('2. getCookie("auth_token") - получить cookie');
-console.log('3. clearAllAuthCookies() - очистить все cookies');
+// Проверка авторизации по токенам
+export const isAuthenticated = (): boolean => {
+  const token = localStorage.getItem('token');
+  const cookieToken = getCookie('auth_token');
+  return !!(token || cookieToken);
+};
+
+// Получение токена из любого источника
+export const getAuthToken = (): string | null => {
+  return localStorage.getItem('token') || getCookie('auth_token');
+};

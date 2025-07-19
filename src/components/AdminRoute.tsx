@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from './common/Button';
 
 interface AdminRouteProps {
@@ -10,10 +11,12 @@ interface AdminRouteProps {
 }
 
 const AdminRoute: React.FC<AdminRouteProps> = ({ children, isAuth, isAdmin, loading }) => {
+  const { t } = useTranslation();
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-white text-xl text-gray-600">
-        Проверка прав доступа...
+        {t('checkingAccess')}
       </div>
     );
   }
@@ -21,14 +24,14 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children, isAuth, isAdmin, load
   if (!isAuth) {
     return (
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow mt-12 text-center text-black">
-        <h2 className="text-2xl font-bold mb-4">🔒 Требуется авторизация</h2>
-        <p className="mb-4">Для доступа к админ-панели необходимо войти в систему.</p>
+        <h2 className="text-2xl font-bold mb-4">🔒 {t('authRequired')}</h2>
+        <p className="mb-4">{t('adminAccessRequired')}</p>
         <div className="flex gap-4 justify-center">
           <Link to="/login">
-            <Button variant="primary">Войти</Button>
+            <Button variant="primary">{t('login')}</Button>
           </Link>
           <Link to="/dashboard">
-            <Button variant="secondary">На главную</Button>
+            <Button variant="secondary">{t('backToHome')}</Button>
           </Link>
         </div>
       </div>
@@ -38,14 +41,14 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children, isAuth, isAdmin, load
   if (!isAdmin) {
     return (
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow mt-12 text-center text-black">
-        <h2 className="text-2xl font-bold mb-4">🔒 Доступ запрещен</h2>
-        <p className="mb-4">Для доступа к админ-панели нужны права администратора.</p>
+        <h2 className="text-2xl font-bold mb-4">🔒 {t('accessDenied')}</h2>
+        <p className="mb-4">{t('adminRightsRequired')}</p>
         <p className="text-sm text-gray-500 mb-4">
-          Отладка: isAuth={isAuth.toString()}, isAdmin={isAdmin.toString()}
+          {t('debug')}: isAuth={isAuth.toString()}, isAdmin={isAdmin.toString()}
         </p>
         <div className="flex gap-4 justify-center">
           <Link to="/dashboard">
-            <Button variant="primary">На главную</Button>
+            <Button variant="primary">{t('backToHome')}</Button>
           </Link>
           <Button 
             variant="danger"
@@ -54,7 +57,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children, isAuth, isAdmin, load
               window.location.reload();
             }}
           >
-            🔧 Включить тест-админа
+            🔧 {t('enableTestAdmin')}
           </Button>
         </div>
       </div>

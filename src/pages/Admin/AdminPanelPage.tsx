@@ -8,10 +8,10 @@ const AdminPanelPage: React.FC = () => {
     <div className="max-w-2xl mx-auto bg-gray-50 p-8 rounded shadow mt-8 text-black">
       <div className="mb-6 flex gap-4">
         <Link to="/dashboard">
-          <Button variant="secondary">← Назад в меню</Button>
+          <Button variant="secondary">{t('backToMenu')}</Button>
         </Link>
         <Link to="/profile">
-          <Button variant="primary">Профиль</Button>
+          <Button variant="primary">{t('profile')}</Button>
         </Link>
       </div>
       <h2 className="text-2xl font-bold mb-4">{t('admin')}</h2>

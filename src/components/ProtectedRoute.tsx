@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,10 +9,12 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, isAuth, loading }) => {
+  const { t } = useTranslation();
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-white text-xl text-gray-600">
-        Проверка авторизации...
+        {t('checkingAccess')}
       </div>
     );
   }

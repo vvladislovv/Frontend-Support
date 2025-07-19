@@ -26,6 +26,10 @@ export function useRegister(onAuth: (profile: Profile) => void) {
     try {
       await apiRegister(email, password, name);
       const profile: Profile = await getProfile();
+      
+      // Очищаем флаг выхода при успешной регистрации
+      sessionStorage.removeItem('user_logged_out');
+      
       onAuth(profile);
       navigate('/dashboard');
     } catch (e: unknown) {

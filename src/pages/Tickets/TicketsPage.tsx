@@ -19,10 +19,10 @@ const TicketsPage: React.FC = () => {
     <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow mt-12 text-black relative">
       <div className="mb-6 flex gap-4">
         <Link to="/dashboard">
-          <Button variant="secondary">← Назад в меню</Button>
+          <Button variant="secondary">{t('backToMenu')}</Button>
         </Link>
         <Link to="/profile">
-          <Button variant="primary">Профиль</Button>
+          <Button variant="primary">{t('profile')}</Button>
         </Link>
       </div>
       <h2 className="text-2xl font-bold mb-2">{t('tickets')}</h2>

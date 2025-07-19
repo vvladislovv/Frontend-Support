@@ -6,6 +6,8 @@ import { Input } from '../components/common/Input';
 import MobileHeader from '../components/MobileHeader';
 import { isTelegramWebApp } from '../telegram';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useTranslation } from 'react-i18next';
+import { isAuthenticated } from '../utils/cookies';
 
 type Profile = {
   id: string;
@@ -19,6 +21,7 @@ interface RegisterProps {
 }
 
 const Register: React.FC<RegisterProps> = ({ onAuth }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
   const {
@@ -33,16 +36,11 @@ const Register: React.FC<RegisterProps> = ({ onAuth }) => {
     handleSubmit
   } = useRegister(onAuth);
 
-  // Проверяем, авторизован ли пользователь
+  // Проверяем, авторизован ли пользователь и откуда пришел
+  const wasLoggedOut = sessionStorage.getItem('user_logged_out') === 'true';
+  
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const cookieToken = document.cookie
-      .split(';')
-      .find(row => row.trim().startsWith('auth_token='))
-      ?.split('=')[1];
-    
-    // Если есть токен в localStorage или cookies, перенаправляем на dashboard
-    if (token || cookieToken) {
+    if (isAuthenticated()) {
       navigate('/dashboard');
     }
   }, [navigate]);
@@ -50,9 +48,9 @@ const Register: React.FC<RegisterProps> = ({ onAuth }) => {
   if (isMobile) {
     return (
       <div className="min-h-screen tg-bg">
-        <MobileHeader title="Регистрация" showBack={true} />
+        <MobileHeader title={t('registerTitle')} showBack={!wasLoggedOut} fullWidth={true} />
         
-        <div className="px-6 py-8">
+        <div className="px-6 py-8 pb-32">
           {/* Логотип */}
           <div className="flex justify-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-mobile">
@@ -64,40 +62,40 @@ const Register: React.FC<RegisterProps> = ({ onAuth }) => {
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block mb-2 text-sm font-medium tg-text">Имя</label>
+              <label className="block mb-2 text-sm font-medium tg-text">{t('name')}</label>
               <input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
-                placeholder="Введите ваше имя"
+                placeholder={t('enterName')}
                 className={`input-mobile ${error && !name ? 'border-red-500 focus:ring-red-500' : ''}`}
               />
             </div>
             
             <div>
-              <label className="block mb-2 text-sm font-medium tg-text">Email</label>
+              <label className="block mb-2 text-sm font-medium tg-text">{t('email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="Введите email"
+                placeholder={t('enterEmail')}
                 className={`input-mobile ${error && (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) ? 'border-red-500 focus:ring-red-500' : ''}`}
               />
             </div>
             
             <div>
-              <label className="block mb-2 text-sm font-medium tg-text">Пароль</label>
+              <label className="block mb-2 text-sm font-medium tg-text">{t('password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                placeholder="Создайте пароль"
+                placeholder={t('createPassword')}
                 className={`input-mobile ${error && !password ? 'border-red-500 focus:ring-red-500' : ''}`}
               />
-              <p className="text-xs tg-hint mt-1">Минимум 6 символов</p>
+              <p className="text-xs tg-hint mt-1">{t('minimumChars')}</p>
             </div>
             
             {error && (
@@ -114,21 +112,21 @@ const Register: React.FC<RegisterProps> = ({ onAuth }) => {
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Регистрация...
+                  {t('registering')}
                 </div>
               ) : (
-                'Зарегистрироваться'
+                t('register')
               )}
             </button>
           </form>
           
           <div className="mt-8 text-center">
-            <p className="text-sm tg-hint mb-4">Уже есть аккаунт?</p>
+            <p className="text-sm tg-hint mb-4">{t('alreadyHaveAccount')}</p>
             <Link
               to="/login"
               className="btn-secondary-mobile w-full shadow-mobile"
             >
-              Войти
+              {t('signIn')}
             </Link>
           </div>
         </div>
@@ -138,42 +136,44 @@ const Register: React.FC<RegisterProps> = ({ onAuth }) => {
 
   // Десктопная версия
   return (
-    <div className="min-h-screen flex items-start justify-center bg-gray-50">
+    <div className="min-h-screen flex items-start justify-center bg-white">
       <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg border border-blue-100 mt-40">
         <div className="flex items-center mb-6">
-          <Link to="/" className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
-          </Link>
-          <h2 className="text-2xl font-bold text-center text-gray-700 flex-1">Регистрация</h2>
+          {!wasLoggedOut && (
+            <Link to="/" className="p-2 -ml-2 rounded-lg hover:bg-gray-50 transition-colors">
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+            </Link>
+          )}
+          <h2 className="text-2xl font-bold text-center text-gray-700 flex-1">{t('registerTitle')}</h2>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block mb-1 font-semibold text-gray-500">Имя</label>
-            <Input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder="Имя" className={error && !name ? 'border-red-500' : ''} />
+            <label className="block mb-1 font-semibold text-gray-500">{t('name')}</label>
+            <Input type="text" value={name} onChange={e => setName(e.target.value)} required placeholder={t('name')} className={error && !name ? 'border-red-500' : ''} />
           </div>
           <div>
-            <label className="block mb-1 font-semibold text-gray-500">Email</label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="Email" className={error && (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) ? 'border-red-500' : ''} />
+            <label className="block mb-1 font-semibold text-gray-500">{t('email')}</label>
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder={t('email')} className={error && (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) ? 'border-red-500' : ''} />
           </div>
           <div>
-            <label className="block mb-1 font-semibold text-gray-500">Пароль</label>
+            <label className="block mb-1 font-semibold text-gray-500">{t('password')}</label>
             <Input 
               type="password" 
               value={password} 
               onChange={e => setPassword(e.target.value)} 
               required 
-              placeholder="Пароль" 
+              placeholder={t('password')} 
               className={error && !password ? 'border-red-500' : ''} 
             />
           </div>
           {error && <div className="text-red-500 text-sm mt-1">{error}</div>}
           <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold rounded py-2 mt-2 transform transition-transform duration-200 hover:scale-105 hover:shadow-lg focus:scale-105 focus:shadow-lg" disabled={loading}>
-            {loading ? 'Регистрация...' : 'Зарегистрироваться'}
+            {loading ? t('registering') : t('register')}
           </Button>
         </form>
         <div className="mt-4 text-center text-sm text-gray-400">
-          Уже есть аккаунт? <Link to="/login" className="text-blue-600 hover:underline font-semibold">Войти</Link>
+          {t('alreadyHaveAccount')} <Link to="/login" className="text-blue-600 hover:underline font-semibold">{t('signIn')}</Link>
         </div>
       </div>
     </div>

@@ -1,10 +1,12 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './hooks/useAuth';
 import { useEffect } from 'react';
 import { isTelegramWebApp } from './telegram';
+import { clearDevData, debugStorageData } from './utils/devUtils';
 import Navbar from './components/Navbar';
 import MobileNavigation from './components/MobileNavigation';
-import DevModeIndicator from './components/DevModeIndicator';
+
 import AdminRoute from './components/AdminRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -21,15 +23,40 @@ import AnalyticsPage from './pages/Dashboard/AnalyticsPage';
 import GreetingsPage from './pages/Dashboard/GreetingsPage';
 import BillingPage from './pages/Billing/BillingPage';
 import ReferralsPage from './pages/Referrals/ReferralsPage';
+import SettingsPage from './pages/SettingsPage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AdminPage from './pages/Admin/AdminPage';
+import TariffsPage from './pages/Admin/TariffsPage';
+import SystemLogsPage from './pages/Admin/SystemLogsPage';
+import SystemMonitorPage from './pages/Admin/SystemMonitorPage';
 import NotFound from './pages/NotFound';
 
 export default function App() {
-  const { isAuth, isAdmin, loading, tgLoading, handleLogout, handleAuth } = useAuth();
+  const { t } = useTranslation();
+  const { isAuth, isAdmin, loading, tgLoading, handleLogout, handleAuth, forceUpdate } = useAuth();
   const location = useLocation();
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
   const isWelcomePage = location.pathname === '/';
+  
+  // Дополнительная проверка для мобильной навигации
+  const shouldShowMobileNav = isAuth && !sessionStorage.getItem('user_logged_out');
+
+  // Очистка данных при перезапуске сервера разработки
+  useEffect(() => {
+    const wasCleared = clearDevData();
+    if (wasCleared) {
+      console.log('🔄 Dev data cleared, reloading page...');
+      // Небольшая задержка перед перезагрузкой
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    }
+    
+    // В режиме разработки показываем отладочную информацию
+    if (process.env.NODE_ENV === 'development') {
+      debugStorageData();
+    }
+  }, []);
 
   // Инициализация Telegram WebApp
   useEffect(() => {
@@ -51,14 +78,14 @@ export default function App() {
       tg.setHeaderColor('#ffffff');
       tg.setBackgroundColor('#f8fafc');
       
-      // Скрытие кнопки "Назад" в главном меню
+      // Hide back button in main menu
       if (tg.BackButton) {
         tg.BackButton.hide();
       }
     }
   }, []);
 
-  // Управление кнопкой "Назад" в Telegram
+  // Manage back button in Telegram
   useEffect(() => {
     if (isTelegramWebApp()) {
       // @ts-expect-error: Telegram WebApp API is not typed
@@ -82,14 +109,14 @@ export default function App() {
       <div className="flex flex-col justify-center items-center min-h-screen tg-bg">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
         <p className="text-lg tg-text">
-          {tgLoading ? 'Подключение к Telegram...' : 'Загрузка...'}
+          {tgLoading ? t('connectingToTelegram') : t('loading')}
         </p>
       </div>
     );
   }
   
   return (
-    <div className={`mobile-container ${isMobile ? 'tg-bg' : 'bg-gray-50'}`}>
+    <div className={`mobile-container ${isMobile ? 'tg-bg' : 'bg-white'}`}>
       {/* Десктопная навигация */}
       {!isMobile && (
         <Navbar 
@@ -153,6 +180,11 @@ export default function App() {
               <ReferralsPage />
             </ProtectedRoute>
           } />
+          <Route path="/settings" element={
+            <ProtectedRoute isAuth={isAuth} loading={loading}>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
           
           {/* Admin Routes - требуют авторизации и прав админа */}
           <Route path="/admin" element={
@@ -167,7 +199,7 @@ export default function App() {
           } />
           <Route path="/admin/system" element={
             <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
-              <AdminPage />
+              <SystemMonitorPage />
             </AdminRoute>
           } />
           <Route path="/admin/plans" element={
@@ -175,9 +207,14 @@ export default function App() {
               <AdminPage />
             </AdminRoute>
           } />
+          <Route path="/admin/plans" element={
+            <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
+              <TariffsPage />
+            </AdminRoute>
+          } />
           <Route path="/admin/logs" element={
             <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
-              <AdminPage />
+              <SystemLogsPage />
             </AdminRoute>
           } />
           
@@ -187,10 +224,9 @@ export default function App() {
       </main>
       
       {/* Мобильная навигация */}
-      {isMobile && <MobileNavigation isAuth={isAuth} isAdmin={isAdmin} />}
+      {isMobile && shouldShowMobileNav && <MobileNavigation isAuth={isAuth} isAdmin={isAdmin} />}
       
-      {/* Индикатор режима разработки */}
-      <DevModeIndicator />
+
     </div>
   );
 }

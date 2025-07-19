@@ -26,6 +26,9 @@ export function useLogin(onAuth: (profile: Profile) => void) {
       const response = await login(email, password);
       const profile: Profile = response.user;
       
+      // Очищаем флаг выхода при успешном входе
+      sessionStorage.removeItem('user_logged_out');
+      
       // Вызываем функцию авторизации (она сохранит токены в cookies)
       onAuth(profile);
       

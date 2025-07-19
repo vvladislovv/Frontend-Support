@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   HomeIcon, 
   UserIcon, 
@@ -22,55 +23,51 @@ interface MobileNavigationProps {
 }
 
 const MobileNavigation: React.FC<MobileNavigationProps> = ({ isAuth, isAdmin }) => {
+  const { t } = useTranslation();
   const location = useLocation();
 
-  if (!isAuth) return null;
+  // Дополнительная проверка - не показываем навигацию если пользователь вышел
+  const wasLoggedOut = sessionStorage.getItem('user_logged_out') === 'true';
+  
+  if (!isAuth || wasLoggedOut) return null;
 
   const navItems = [
     {
       path: '/dashboard',
-      label: 'Главная',
+      label: t('dashboard'),
       icon: HomeIcon,
       iconSolid: HomeIconSolid,
     },
     {
       path: '/bots',
-      label: 'Боты',
+      label: t('bots'),
       icon: ChatBubbleLeftRightIcon,
       iconSolid: ChatBubbleLeftRightIconSolid,
     },
     {
       path: '/analytics',
-      label: 'Аналитика',
+      label: t('analytics'),
       icon: ChartBarIcon,
       iconSolid: ChartBarIconSolid,
     },
     {
       path: '/tickets',
-      label: 'Тикеты',
+      label: t('tickets'),
       icon: TicketIcon,
       iconSolid: TicketIconSolid,
     },
     {
       path: '/profile',
-      label: 'Профиль',
+      label: t('profile'),
       icon: UserIcon,
       iconSolid: UserIconSolid,
     },
   ];
 
-  // Добавляем админ пункт если пользователь админ
-  if (isAdmin) {
-    navItems.splice(4, 0, {
-      path: '/admin',
-      label: 'Админ',
-      icon: CogIcon,
-      iconSolid: CogIconSolid,
-    });
-  }
+  // Админ пункт убран из мобильной навигации
 
   return (
-    <nav className="mobile-nav">
+    <nav className={`mobile-nav ${wasLoggedOut ? 'hidden' : ''}`}>
       {navItems.map((item) => {
         const isActive = location.pathname === item.path || 
           (item.path === '/dashboard' && location.pathname.startsWith('/dashboard'));

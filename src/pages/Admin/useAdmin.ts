@@ -107,7 +107,7 @@ export function useAdmin(t: (key: string) => string) {
   const handleSubmit = (event: React.FormEvent) => throttledSubmit(event);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Удалить клиента? Это действие нельзя отменить.')) return;
+    if (!window.confirm(t('confirmDelete'))) return;
     try {
       await deleteClient(id);
       fetchClients();

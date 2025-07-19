@@ -10,7 +10,7 @@ const variants = {
   primary: 'bg-blue-600 text-white hover:bg-blue-700',
   secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
   danger: 'bg-red-500 text-white hover:bg-red-600',
-  warning: 'bg-yellow-400 text-white hover:bg-yellow-500',
+  warning: 'bg-orange-500 text-white hover:bg-orange-600',
 };
 
 export const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', className = '', ...props }) => (

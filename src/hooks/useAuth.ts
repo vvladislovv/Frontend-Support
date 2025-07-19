@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, logout as apiLogout, login as apiLogin } from '../api';
 import { isTelegramWebApp, telegramAutoLogin } from '../telegram';
+import { setCookie, getCookie, clearAllAuthCookies, isAuthenticated, getAuthToken } from '../utils/cookies';
 
 type Profile = {
   id: string;
@@ -10,73 +11,29 @@ type Profile = {
   role: string;
 };
 
-// Функции для работы с cookies
-const setCookie = (name: string, value: string, days: number = 30) => {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
-};
-
-const getCookie = (name: string): string | null => {
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
-};
-
-const deleteCookie = (name: string) => {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-};
-
-const clearAllAuthCookies = () => {
-  // Удаляем все возможные cookies связанные с авторизацией
-  const cookiesToDelete = [
-    'auth_token',
-    'token',
-    'session',
-    'user_id',
-    'user_role',
-    'remember_me',
-    'access_token',
-    'refresh_token'
-  ];
-  
-  cookiesToDelete.forEach(cookieName => {
-    // Удаляем с разными вариантами пути и домена
-    deleteCookie(cookieName);
-    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname};`;
-    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-  });
-  
-  // Дополнительная очистка - удаляем ВСЕ cookies для текущего домена
-  document.cookie.split(";").forEach(function(c) { 
-    const cookieName = c.replace(/^ +/, "").replace(/=.*/, "");
-    if (cookieName) {
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname};`;
-    }
-  });
-};
-
 export function useAuth() {
   const navigate = useNavigate();
   const [isAuth, setIsAuth] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tgLoading, setTgLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
     async function checkAuth() {
-      const token = localStorage.getItem('token') || getCookie('auth_token');
+      // Если пользователь в процессе выхода, не проверяем авторизацию
+      if (isLoggingOut) {
+        return;
+      }
+      
+      const token = getAuthToken();
       
       // В режиме разработки автоматически авторизуем пользователя
       const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      
+      // Проверяем, был ли намеренный выход
+      const wasLoggedOut = sessionStorage.getItem('user_logged_out') === 'true';
       
       if (isTelegramWebApp() && !isDev) {
         setTgLoading(true);
@@ -104,11 +61,10 @@ export function useAuth() {
         try {
           const profile: Profile = await getProfile();
           setIsAuth(true);
-          // Если токен есть только в cookies, сохраняем его в localStorage
+          // Синхронизируем токены между localStorage и cookies
           if (!localStorage.getItem('token') && token) {
             localStorage.setItem('token', token);
           }
-          // Если токен есть только в localStorage, сохраняем его в cookies
           if (!getCookie('auth_token') && token) {
             setCookie('auth_token', token);
           }
@@ -116,8 +72,8 @@ export function useAuth() {
           const isTestAdmin = profile.role === 'admin' || profile.id === '1' || localStorage.getItem('test-admin') === 'true';
           setIsAdmin(isTestAdmin);
         } catch {
-          if (isDev) {
-            // В режиме разработки создаем токен автоматически
+          if (isDev && !wasLoggedOut) {
+            // В режиме разработки создаем токен автоматически, но только если не было намеренного выхода
             localStorage.setItem('token', 'dev-token');
             setCookie('auth_token', 'dev-token');
             setIsAuth(true);
@@ -128,7 +84,7 @@ export function useAuth() {
             setIsAdmin(false);
             // Очищаем токены если авторизация не удалась
             localStorage.removeItem('token');
-            deleteCookie('auth_token');
+            clearAllAuthCookies();
           }
         } finally {
           setLoading(false);
@@ -138,28 +94,63 @@ export function useAuth() {
       }
     }
     checkAuth();
-  }, []);
+  }, [isLoggingOut]);
 
   const handleLogout = () => {
+    console.log('🚪 Logout started');
+    
+    // СНАЧАЛА обновляем состояние - это самое важное для UI
+    setIsAuth(false);
+    setIsAdmin(false);
+    setLoading(false);
+    setForceUpdate(prev => prev + 1); // Принудительное обновление
+    console.log('✅ Updated auth state to false IMMEDIATELY');
+    
+    // Устанавливаем флаг выхода
+    setIsLoggingOut(true);
+    
+    // Отмечаем, что пользователь намеренно вышел
+    sessionStorage.setItem('user_logged_out', 'true');
+    console.log('✅ Set logout flag in sessionStorage');
+    
     // Вызываем API выхода
     apiLogout();
+    console.log('✅ Called API logout');
+    
     // Очищаем все данные авторизации из localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('test-admin');
     localStorage.clear(); // Полностью очищаем localStorage
+    console.log('✅ Cleared localStorage');
     
     // Полностью очищаем все cookies связанные с авторизацией
     clearAllAuthCookies();
+    console.log('✅ Cleared all auth cookies');
     
-    // Обновляем состояние
-    setIsAuth(false);
-    setIsAdmin(false);
+    // Принудительно обновляем компонент еще раз
+    setTimeout(() => {
+      setForceUpdate(prev => prev + 1);
+      console.log('✅ Force updated component');
+    }, 50);
     
-    // Перенаправляем на страницу логина
-    navigate('/login');
+    // Перенаправляем на страницу логина с задержкой для обновления UI
+    setTimeout(() => {
+      navigate('/login');
+      console.log('✅ Navigated to /login');
+    }, 200); // Увеличили задержку
+    
+    // Сбрасываем флаг выхода через небольшую задержку
+    setTimeout(() => {
+      setIsLoggingOut(false);
+      console.log('✅ Reset logging out flag');
+    }, 500);
   };
 
   const handleAuth = (profile: Profile) => {
+    // Очищаем флаг выхода при успешной авторизации
+    sessionStorage.removeItem('user_logged_out');
+    setIsLoggingOut(false);
+    
     setIsAuth(true);
     setIsAdmin(profile.role === 'admin' || profile.id === '1' || localStorage.getItem('test-admin') === 'true');
     // Сохраняем токен в cookies при успешной авторизации
@@ -175,6 +166,7 @@ export function useAuth() {
     loading,
     tgLoading,
     handleLogout,
-    handleAuth
+    handleAuth,
+    forceUpdate // Добавляем для принудительного обновления
   };
 }

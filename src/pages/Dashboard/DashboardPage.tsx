@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { useDashboard } from './useDashboard';
 import MobileHeader from '../../components/MobileHeader';
 import { isTelegramWebApp } from '../../telegram';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../hooks/useAuth';
 import { 
   ChatBubbleLeftRightIcon,
   TicketIcon,
@@ -15,62 +17,64 @@ import {
 
 const DashboardPage: React.FC = () => {
   const { isAdmin } = useDashboard();
+  const { handleLogout } = useAuth();
+  const { t } = useTranslation();
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
 
   const dashboardItems = [
     {
       href: '/bots',
       icon: ChatBubbleLeftRightIcon,
-      title: 'Боты',
-      description: 'Настройка и управление Telegram ботами',
+      title: 'bots',
+      description: 'botsDescription',
       color: 'blue',
       emoji: '🤖'
     },
     {
       href: '/tickets',
       icon: TicketIcon,
-      title: 'Тикеты',
-      description: 'Мониторинг и ответы на обращения клиентов',
+      title: 'tickets',
+      description: 'ticketsDescription',
       color: 'green',
       emoji: '🎫'
     },
     {
       href: '/analytics',
       icon: ChartBarIcon,
-      title: 'Аналитика',
-      description: 'Обзор активности и статистики',
+      title: 'analytics',
+      description: 'analyticsDescription',
       color: 'purple',
       emoji: '📊'
     },
     {
       href: '/crm',
       icon: UserGroupIcon,
-      title: 'CRM',
-      description: 'Управление подключениями и данными CRM',
-      color: 'yellow',
+      title: 'crm',
+      description: 'crmDescription',
+      color: 'indigo',
       emoji: '📇'
     },
     {
       href: '/greetings',
       icon: HandRaisedIcon,
-      title: 'Приветствия',
-      description: 'Настройка автоматических приветственных сообщений',
+      title: 'greetings',
+      description: 'greetingsDescription',
       color: 'pink',
       emoji: '👋'
     },
     {
       href: '/billing',
       icon: CreditCardIcon,
-      title: 'Биллинг',
-      description: 'Управление подпиской и тарифными планами',
+      title: 'billing',
+      description: 'billingDescription',
       color: 'cyan',
       emoji: '💳'
     },
     {
       href: '/referrals',
       icon: UsersIcon,
-      title: 'Рефералы',
-      description: 'Управление реферальными ссылками и отслеживание конверсий',
+      title: 'referrals',
+      description: 'referralsDescription',
       color: 'gray',
       emoji: '👥'
     }
@@ -79,16 +83,22 @@ const DashboardPage: React.FC = () => {
   if (isMobile) {
     return (
       <div className="min-h-screen tg-bg">
-        <MobileHeader title="Главная" />
+        <MobileHeader 
+          title={t('dashboard')} 
+          showMenu={true}
+          onLogout={handleLogout}
+          isAuth={true}
+          fullWidth={true}
+        />
         
-        <div className="px-4 py-6">
+        <div className="px-4 py-6 pb-32">
           {/* Приветствие */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold tg-text mb-2">
-              Добро пожаловать! 👋
+              {t('welcome')}
             </h1>
             <p className="tg-hint text-sm">
-              Управляйте своими ботами и сервисами
+              {t('manageServices')}
             </p>
           </div>
 
@@ -101,15 +111,15 @@ const DashboardPage: React.FC = () => {
                     <CogIcon className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-red-700 font-medium text-sm">Режим администратора</p>
-                    <p className="text-red-600 text-xs">У вас есть права администратора</p>
+                    <p className="text-red-700 font-medium text-sm">{t('adminMode')}</p>
+                    <p className="text-red-600 text-xs">{t('youHaveAdminRights')}</p>
                   </div>
                 </div>
                 <Link
                   to="/admin"
                   className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium active:bg-red-700 transition-colors"
                 >
-                  Админ
+                  {t('admin')}
                 </Link>
               </div>
             </div>
@@ -130,10 +140,10 @@ const DashboardPage: React.FC = () => {
                       <span className="text-2xl">{item.emoji}</span>
                     </div>
                     <h3 className={`font-semibold text-${item.color}-700 mb-1 text-sm`}>
-                      {item.title}
+                      {t(item.title)}
                     </h3>
                     <p className="text-xs tg-hint leading-tight">
-                      {item.description}
+                      {t(item.description)}
                     </p>
                   </div>
                 </Link>
@@ -142,16 +152,16 @@ const DashboardPage: React.FC = () => {
           </div>
 
           {/* Статистика */}
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold tg-text mb-4">Быстрая статистика</h2>
+          <div className="mt-8 mb-8">
+            <h2 className="text-lg font-semibold tg-text mb-4">{t('quickStats')}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="card-mobile text-center">
                 <div className="text-2xl font-bold text-blue-600 mb-1">12</div>
-                <div className="text-xs tg-hint">Активных ботов</div>
+                <div className="text-xs tg-hint">{t('activeBots')}</div>
               </div>
               <div className="card-mobile text-center">
                 <div className="text-2xl font-bold text-green-600 mb-1">48</div>
-                <div className="text-xs tg-hint">Новых тикетов</div>
+                <div className="text-xs tg-hint">{t('newTickets')}</div>
               </div>
             </div>
           </div>
@@ -164,15 +174,15 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto bg-white p-10 rounded-2xl shadow-xl mt-20 flex flex-col gap-8 border border-blue-100">
       <h2 className="text-3xl font-extrabold mb-2 text-blue-800 text-center drop-shadow-sm tracking-tight">
-        Панель управления
+        {t('controlPanel')}
       </h2>
       
       {isAdmin && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
           <div className="flex items-center justify-between">
-            <span className="text-red-700 font-semibold">🔧 Режим администратора активен</span>
+            <span className="text-red-700 font-semibold">🔧 {t('adminModeActive')}</span>
             <Link to="/admin" className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-              Панель администратора
+              {t('adminPanel')}
             </Link>
           </div>
         </div>
@@ -189,10 +199,10 @@ const DashboardPage: React.FC = () => {
             >
               <span className="text-4xl mb-2">{item.emoji}</span>
               <span className={`text-lg font-semibold text-${item.color}-700 group-hover:underline`}>
-                {item.title}
+                {t(item.title)}
               </span>
               <span className="text-gray-400 text-sm mt-1 text-center">
-                {item.description}
+                {t(item.description)}
               </span>
             </Link>
           );

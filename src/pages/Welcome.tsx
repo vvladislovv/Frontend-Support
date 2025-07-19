@@ -1,15 +1,24 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { isTelegramWebApp } from '../telegram';
+import { isAuthenticated } from '../utils/cookies';
 
 const Welcome: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
   
   useEffect(() => {
+    // Проверяем, авторизован ли пользователь
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+      return;
+    }
+    
     setShow(true);
-  }, []);
+  }, [navigate]);
 
   return (
     <div className={`flex flex-col items-center justify-center min-h-screen tg-bg text-center transition-all duration-700 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} ${isMobile ? 'px-6 py-8' : 'px-4'}`}>
@@ -54,10 +63,10 @@ const Welcome: React.FC = () => {
       {isTelegramWebApp() && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 max-w-sm animate-fade-in" style={{ animationDelay: '0.6s' }}>
           <p className="text-sm text-blue-700 font-medium">
-            🚀 Добро пожаловать в Telegram Mini App!
+            🚀 {t('welcomeToTelegramApp')}
           </p>
           <p className="text-xs text-blue-600 mt-1">
-            Управляйте своими ботами прямо из Telegram
+            {t('manageBotsFromTelegram')}
           </p>
         </div>
       )}
@@ -67,12 +76,7 @@ const Welcome: React.FC = () => {
         © {new Date().getFullYear()}
       </div>
 
-      {/* Индикатор для разработки */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 left-4 bg-yellow-100 border border-yellow-300 rounded-lg px-3 py-2 text-xs text-yellow-800 font-mono">
-          DEV MODE
-        </div>
-      )}
+
     </div>
   );
 };
