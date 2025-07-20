@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getTickets, createTicket, deleteTicket } from '../../api';
+import { getTickets, createTicket, updateTicket, deleteTicket } from '../../api';
 import throttle from 'lodash.throttle';
 
 export interface Ticket {
   id: string;
   subject: string;
+  message: string;
   status: string;
   botId: string;
   telegramId: string;
@@ -15,7 +16,8 @@ export function useTickets(t: (key: string) => string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ subject: '', message: '', botId: '', telegramId: '' });
+  const [editTicket, setEditTicket] = useState<Ticket | null>(null);
+  const [form, setForm] = useState({ subject: '', message: '', botId: '', telegramId: '', status: 'open' });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -34,10 +36,27 @@ export function useTickets(t: (key: string) => string) {
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-  const openModal = () => { setShowModal(true); setFormError(''); };
-  const closeModal = () => { setShowModal(false); setForm({ subject: '', message: '', botId: '', telegramId: '' }); setFormError(''); };
+  const openModal = (ticket?: Ticket) => {
+    setEditTicket(ticket || null);
+    setForm(ticket ? {
+      subject: ticket.subject,
+      message: ticket.message,
+      botId: ticket.botId,
+      telegramId: ticket.telegramId,
+      status: ticket.status
+    } : { subject: '', message: '', botId: '', telegramId: '', status: 'open' });
+    setFormError('');
+    setShowModal(true);
+  };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const closeModal = () => {
+    setShowModal(false);
+    setEditTicket(null);
+    setForm({ subject: '', message: '', botId: '', telegramId: '', status: 'open' });
+    setFormError('');
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -46,7 +65,11 @@ export function useTickets(t: (key: string) => string) {
     setFormLoading(true);
     setFormError('');
     try {
-      await createTicket({ ...form, status: 'open' });
+      if (editTicket) {
+        await updateTicket(editTicket.id, form);
+      } else {
+        await createTicket(form);
+      }
       closeModal();
       fetchTickets();
     } catch {
@@ -68,7 +91,7 @@ export function useTickets(t: (key: string) => string) {
   return {
     tickets, loading, error,
     showModal, openModal, closeModal,
-    form, setForm, formLoading, formError,
+    editTicket, form, setForm, formLoading, formError,
     handleChange, handleSubmit, handleDelete
   };
 } 

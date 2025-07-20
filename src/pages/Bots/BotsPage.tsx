@@ -57,11 +57,17 @@ const BotsPage: React.FC = () => {
                   {bot.link}
                 </a>
                 <div className="flex gap-2">
-                  <button className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium active:bg-blue-600 transition-colors">
-                    {t('edit')}
+                  <button 
+                    onClick={() => openModal(bot)}
+                    className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium active:bg-blue-600 transition-colors"
+                  >
+                    ✏️ {t('edit')}
                   </button>
-                  <button className="flex-1 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium active:bg-red-600 transition-colors">
-                    {t('delete')}
+                  <button 
+                    onClick={() => handleDelete(bot.id)}
+                    className="flex-1 px-3 py-2 bg-red-500 text-white rounded-lg text-sm font-medium active:bg-red-600 transition-colors"
+                  >
+                    🗑️ {t('delete')}
                   </button>
                 </div>
               </div>
@@ -139,8 +145,43 @@ const BotsPage: React.FC = () => {
           data={bots.length > 0 ? bots.map(bot => ({
             ...bot,
             link: <a href={bot.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{bot.link}</a>,
-          })) : [{ name: t('noData'), username: '', link: '' }]}
-          actions={null}
+            actions: (
+              <div className="flex gap-2">
+                <Button 
+                  variant="warning" 
+                  onClick={() => openModal(bot)}
+                  className="text-xs px-2 py-1"
+                >
+                  ✏️ {t('edit')}
+                </Button>
+                <Button 
+                  variant="danger" 
+                  onClick={() => handleDelete(bot.id)}
+                  className="text-xs px-2 py-1"
+                >
+                  🗑️ {t('delete')}
+                </Button>
+              </div>
+            )
+          })) : [{ name: t('noData'), username: '', link: '', actions: '' }]}
+          actions={bots.length > 0 ? (
+            <div className="flex gap-2">
+              <Button 
+                variant="warning" 
+                onClick={() => openModal()}
+                className="text-xs px-2 py-1"
+              >
+                ✏️
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={() => {}}
+                className="text-xs px-2 py-1"
+              >
+                🗑️
+              </Button>
+            </div>
+          ) : null}
         />
         {loading && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 text-lg text-blue-600">

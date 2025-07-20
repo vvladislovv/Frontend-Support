@@ -133,10 +133,18 @@ const SystemLogsPage: React.FC = () => {
   if (isMobile) {
     return (
       <div className="min-h-screen tg-bg">
-        <MobileHeader title={t('systemLogs')} fullWidth={true} />
+        <MobileHeader title={t('systemLogs')} showBack={true} fullWidth={true} />
         
         <div className="px-4 py-6 pb-32">
           <div className="mb-6">
+            <div className="flex gap-2 mb-4">
+              <Link to="/admin" className="btn-secondary-mobile flex-1 text-center">
+                ← {t('backToAdminPanel')}
+              </Link>
+              <Link to="/dashboard" className="btn-primary-mobile flex-1 text-center">
+                🏠 {t('backToMainMenu')}
+              </Link>
+            </div>
             <h1 className="text-2xl font-bold tg-text mb-2">📋 {t('systemLogs')}</h1>
             <p className="tg-hint text-sm">{t('systemLogsDescription')}</p>
           </div>
@@ -232,7 +240,10 @@ const SystemLogsPage: React.FC = () => {
     <div className="max-w-6xl mx-auto bg-white p-8 rounded-2xl shadow mt-12 text-black">
       <div className="mb-6 flex gap-4">
         <Link to="/admin">
-          <Button variant="secondary">{t('backToAdminPanel')}</Button>
+          <Button variant="secondary">← {t('backToAdminPanel')}</Button>
+        </Link>
+        <Link to="/dashboard">
+          <Button variant="primary">{t('backToMainMenu')}</Button>
         </Link>
       </div>
       

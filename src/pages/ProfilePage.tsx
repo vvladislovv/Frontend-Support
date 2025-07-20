@@ -243,7 +243,7 @@ const ProfilePage: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-sm font-medium text-green-600">
-                  {stats.subscription}
+                  {t('professional')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -431,7 +431,7 @@ const ProfilePage: React.FC = () => {
               <div>
                 <span className="font-semibold">{t('subscriptionPlan')}:</span>
                 <div className="text-green-600 font-semibold">
-                  {stats.subscription}
+                  {t('professional')}
                 </div>
               </div>
               <div>

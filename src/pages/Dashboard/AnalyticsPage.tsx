@@ -2,12 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
+import { Modal } from '../../components/common/Modal';
 import MobileHeader from '../../components/MobileHeader';
 import { isTelegramWebApp } from '../../telegram';
 
 const AnalyticsPage: React.FC = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showBotsModal, setShowBotsModal] = useState(false);
+  const [showYearModal, setShowYearModal] = useState(false);
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
   
   // {t('testData')}
@@ -96,7 +100,15 @@ const AnalyticsPage: React.FC = () => {
 
           {/* Топ ботов */}
           <div className="card-mobile mb-6">
-            <h2 className="text-lg font-semibold tg-text mb-4">🏆 {t('topBots')}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold tg-text">🏆 {t('topBots')}</h2>
+              <button
+                onClick={() => setShowBotsModal(true)}
+                className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium active:bg-purple-600 transition-colors"
+              >
+                📊 Детали
+              </button>
+            </div>
             <div className="space-y-3">
               {analytics.topBots.map((bot, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -120,9 +132,17 @@ const AnalyticsPage: React.FC = () => {
 
           {/* Последняя активность */}
           <div className="card-mobile mb-6">
-            <h2 className="text-lg font-semibold tg-text mb-4">🕒 {t('activity')}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold tg-text">🕒 {t('activity')}</h2>
+              <button
+                onClick={() => setShowActivityModal(true)}
+                className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm font-medium active:bg-blue-600 transition-colors"
+              >
+                👁️ Подробнее
+              </button>
+            </div>
             <div className="space-y-3">
-              {analytics.recentActivity.map((activity, index) => (
+              {analytics.recentActivity.slice(0, 3).map((activity, index) => (
                 <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                   <div className="flex-1">
@@ -136,7 +156,15 @@ const AnalyticsPage: React.FC = () => {
 
           {/* График активности */}
           <div className="card-mobile">
-            <h2 className="text-lg font-semibold tg-text mb-4">📈 {t('activityYear')}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold tg-text">📈 {t('activityYear')}</h2>
+              <button
+                onClick={() => setShowYearModal(true)}
+                className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium active:bg-green-600 transition-colors"
+              >
+                📅 Год
+              </button>
+            </div>
             <div className="grid grid-cols-12 gap-1 h-24 mb-3">
               {analytics.monthlyStats.messages.map((value, index) => (
                 <div key={index} className="flex flex-col justify-end">
@@ -150,6 +178,92 @@ const AnalyticsPage: React.FC = () => {
             </div>
             <div className="text-sm tg-hint text-center">💬 {t('messagesByMonth')}</div>
           </div>
+
+          {/* Модальные окна */}
+          <Modal open={showActivityModal} onClose={() => setShowActivityModal(false)} title="🕒 Подробная активность">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {analytics.recentActivity.map((activity, index) => (
+                <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{activity.action}</div>
+                    <div className="text-xs text-gray-500">{activity.time}</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Детали: Пользователь выполнил действие в системе
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Modal>
+
+          <Modal open={showBotsModal} onClose={() => setShowBotsModal(false)} title="🏆 Детальная статистика ботов">
+            <div className="space-y-4">
+              {analytics.topBots.map((bot, index) => (
+                <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">{bot.name}</h3>
+                    <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">#{index + 1}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-600">Сообщений:</div>
+                      <div className="font-bold text-blue-600">{bot.messages}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600">Пользователей:</div>
+                      <div className="font-bold text-green-600">{bot.users}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600">Активность:</div>
+                      <div className="font-bold text-purple-600">{Math.round(bot.messages / bot.users)} сообщ/польз</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600">Статус:</div>
+                      <div className="font-bold text-green-600">🟢 Активен</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Modal>
+
+          <Modal open={showYearModal} onClose={() => setShowYearModal(false)} title="📅 Активность за год">
+            <div className="space-y-4">
+              <div className="grid grid-cols-12 gap-2 h-40">
+                {analytics.monthlyStats.messages.map((value, index) => (
+                  <div key={index} className="flex flex-col justify-end items-center">
+                    <div className="text-xs font-bold text-blue-600 mb-1">{value}</div>
+                    <div 
+                      className="bg-blue-500 rounded-t w-full"
+                      style={{ height: `${(value / 420) * 100}%` }}
+                    ></div>
+                    <div className="text-xs mt-1 font-medium">{index + 1}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="text-lg font-bold text-blue-600">
+                    {analytics.monthlyStats.messages.reduce((a, b) => a + b, 0)}
+                  </div>
+                  <div className="text-xs text-blue-700">Всего сообщений</div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="text-lg font-bold text-green-600">
+                    {analytics.monthlyStats.users.reduce((a, b) => a + b, 0)}
+                  </div>
+                  <div className="text-xs text-green-700">Всего пользователей</div>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <div className="text-lg font-bold text-purple-600">
+                    {Math.round(analytics.monthlyStats.messages.reduce((a, b) => a + b, 0) / 12)}
+                  </div>
+                  <div className="text-xs text-purple-700">Среднее в месяц</div>
+                </div>
+              </div>
+            </div>
+          </Modal>
         </div>
       </div>
     );

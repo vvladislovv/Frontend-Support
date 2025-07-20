@@ -192,24 +192,19 @@ export default function App() {
               <AdminDashboard />
             </AdminRoute>
           } />
-          <Route path="/admin/clients" element={
+          <Route path="/admin/users" element={
             <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
               <AdminPage />
             </AdminRoute>
           } />
-          <Route path="/admin/system" element={
-            <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
-              <SystemMonitorPage />
-            </AdminRoute>
-          } />
-          <Route path="/admin/plans" element={
-            <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
-              <AdminPage />
-            </AdminRoute>
-          } />
-          <Route path="/admin/plans" element={
+          <Route path="/admin/tariffs" element={
             <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
               <TariffsPage />
+            </AdminRoute>
+          } />
+          <Route path="/admin/monitor" element={
+            <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
+              <SystemMonitorPage />
             </AdminRoute>
           } />
           <Route path="/admin/logs" element={

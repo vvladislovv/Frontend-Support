@@ -295,7 +295,7 @@ const mockApi = {
     return newTicket;
   },
 
-  async updateTicket(id: string, ticketData: { status: string }) {
+  async updateTicket(id: string, ticketData: { subject?: string; message?: string; status?: string; botId?: string; telegramId?: string }) {
     await delay(500);
     const index = MOCK_DATA.tickets.findIndex((ticket) => ticket.id === id);
     if (index === -1) throw new Error("Ticket not found");
@@ -539,7 +539,7 @@ export const createTicket = async (
 
 export const updateTicket = async (
   id: string,
-  ticketData: { status: string }
+  ticketData: { subject?: string; message?: string; status?: string; botId?: string; telegramId?: string }
 ): Promise<Ticket> => {
   if (IS_DEV_MODE) {
     return await mockApi.updateTicket(id, ticketData);
