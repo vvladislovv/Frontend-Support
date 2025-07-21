@@ -165,7 +165,7 @@ const SystemLogsPage: React.FC = () => {
               {['all', 'error', 'warning', 'info', 'debug'].map(level => (
                 <button
                   key={level}
-                  onClick={() => setFilter(level as any)}
+                  onClick={() => setFilter(level as 'all' | 'info' | 'warning' | 'error' | 'debug')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     filter === level
                       ? 'bg-blue-500 text-white'
@@ -274,7 +274,7 @@ const SystemLogsPage: React.FC = () => {
           {['all', 'error', 'warning', 'info', 'debug'].map(level => (
             <button
               key={level}
-              onClick={() => setFilter(level as any)}
+              onClick={() => setFilter(level as 'all' | 'info' | 'warning' | 'error' | 'debug')}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filter === level
                   ? 'bg-blue-500 text-white'

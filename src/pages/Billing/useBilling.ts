@@ -1,24 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getBillingPlans, getSubscriptions } from '../../api';
+import type { BillingPlan, Subscription } from '../../types';
+
+interface UseBillingReturn {
+  plans: BillingPlan[];
+  subscriptions: Subscription[];
+  loading: boolean;
+  error: string;
+  throttledSubscribe: (planId: string) => void;
+}
 import throttle from 'lodash.throttle';
 
-export interface BillingPlan {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-  features: string[];
-}
-export interface Subscription {
-  id: string;
-  userId: string;
-  planId: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-}
-
-export function useBilling(t: (key: string) => string) {
+export function useBilling(t: (key: string) => string): UseBillingReturn {
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);

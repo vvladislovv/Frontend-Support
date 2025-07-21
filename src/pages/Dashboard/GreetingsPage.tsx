@@ -26,7 +26,7 @@ export default function GreetingsPage() {
         <Input
           placeholder={t('greetings')}
           value={form.text}
-          onChange={e => setForm(f => ({ ...f, text: e.target.value }))}
+          onChange={e => setForm(prev => ({ ...prev, text: e.target.value }))}
           required
         />
         {formError && <div className="text-red-500 text-sm">{formError}</div>}

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import throttle from 'lodash.throttle';
-
+// Локальные определения типов для useForm
 interface UseFormOptions<T> {
   initialValues: T;
   onSubmit: (values: T) => Promise<void>;
@@ -8,7 +8,17 @@ interface UseFormOptions<T> {
   throttleMs?: number;
 }
 
-export function useForm<T extends Record<string, unknown>>({ initialValues, onSubmit, validate, throttleMs = 2000 }: UseFormOptions<T>) {
+interface UseFormReturn<T> {
+  values: T;
+  setValues: (values: T) => void;
+  loading: boolean;
+  error: string;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  setError: (error: string) => void;
+}
+
+export function useForm<T extends Record<string, unknown>>({ initialValues, onSubmit, validate, throttleMs = 2000 }: UseFormOptions<T>): UseFormReturn<T> {
   const [values, setValues] = useState<T>(initialValues);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

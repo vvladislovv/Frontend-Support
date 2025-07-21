@@ -3,7 +3,7 @@
 import { clearAllAuthCookies } from './cookies';
 
 // Функция для очистки данных при перезапуске сервера разработки
-export const clearDevData = () => {
+export const clearDevData = (): boolean => {
   const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
   
   if (isDev) {
@@ -46,7 +46,7 @@ export const clearDevData = () => {
 };
 
 // Функция для принудительной очистки всех данных (для кнопки в UI)
-export const forceCleanAll = () => {
+export const forceCleanAll = (): void => {
   console.log('🧹 Force cleaning all data');
   
   // Отмечаем, что это намеренная очистка
@@ -63,7 +63,7 @@ export const forceCleanAll = () => {
 };
 
 // Функция для отладки - показывает все сохраненные данные
-export const debugStorageData = () => {
+export const debugStorageData = (): void => {
   if (process.env.NODE_ENV === 'development') {
     console.group('🔍 Storage Debug Info');
     

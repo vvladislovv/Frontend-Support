@@ -1,16 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getBots, createBot, updateBot, deleteBot } from '../../api';
+import type { Bot } from '../../types';
+
+interface UseBotsReturn {
+  bots: Bot[];
+  loading: boolean;
+  error: string;
+  showModal: boolean;
+  openModal: (bot?: Bot) => void;
+  closeModal: () => void;
+  editBot: Bot | null;
+  form: {
+    name: string;
+    token: string;
+    username: string;
+    link: string;
+  };
+  setForm: React.Dispatch<React.SetStateAction<{
+    name: string;
+    token: string;
+    username: string;
+    link: string;
+  }>>;
+  formLoading: boolean;
+  formError: string;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  handleDelete: (id: string) => void;
+}
 import throttle from 'lodash.throttle';
 
-export interface Bot {
-  id: string;
-  name: string;
-  token: string;
-  username: string;
-  link: string;
-}
-
-export function useBots() {
+export function useBots(): UseBotsReturn {
   const [bots, setBots] = useState<Bot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

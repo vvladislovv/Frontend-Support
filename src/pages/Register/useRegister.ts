@@ -11,7 +11,19 @@ type Profile = {
   role: string;
 };
 
-export function useRegister(onAuth: (profile: Profile) => void) {
+interface UseRegisterReturn {
+  name: string;
+  setName: (name: string) => void;
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  loading: boolean;
+  error: string;
+  handleSubmit: (e: React.FormEvent) => void;
+}
+
+export function useRegister(onAuth: (profile: Profile) => void): UseRegisterReturn {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');

@@ -10,7 +10,17 @@ type Profile = {
   role: string;
 };
 
-export function useLogin(onAuth: (profile: Profile) => void) {
+interface UseLoginReturn {
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  loading: boolean;
+  error: string;
+  handleSubmit: (e: React.FormEvent) => void;
+}
+
+export function useLogin(onAuth: (profile: Profile) => void): UseLoginReturn {
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('password');
   const [loading, setLoading] = useState(false);
@@ -34,8 +44,9 @@ export function useLogin(onAuth: (profile: Profile) => void) {
       
       // Перенаправляем на дашборд
       navigate('/dashboard');
-    } catch (error: any) {
-      setError(error.message || 'Invalid email or password');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid email or password';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

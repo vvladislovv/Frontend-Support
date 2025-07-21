@@ -1,9 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTariffs, createTariff, updateTariff, deleteTariff } from '../../api';
 import type { Tariff } from '../../types';
+
+interface UseTariffsReturn {
+  tariffs: Tariff[];
+  loading: boolean;
+  error: string;
+  showModal: boolean;
+  openModal: (tariff?: Tariff) => void;
+  closeModal: () => void;
+  editTariff: Tariff | null;
+  form: {
+    name: string;
+    price: number;
+    description: string;
+    active: boolean;
+    features: string;
+  };
+  setForm: React.Dispatch<React.SetStateAction<{
+    name: string;
+    price: number;
+    description: string;
+    active: boolean;
+    features: string;
+  }>>;
+  formLoading: boolean;
+  formError: string;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string | number | boolean } }) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  handleDelete: (id: string) => void;
+  refreshData: () => void;
+}
 import throttle from 'lodash.throttle';
 
-export function useTariffs(t: (key: string) => string) {
+export function useTariffs(t: (key: string) => string): UseTariffsReturn {
   const [tariffs, setTariffs] = useState<Tariff[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +91,7 @@ export function useTariffs(t: (key: string) => string) {
     setFormError('');
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any } }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string | number | boolean } }) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
@@ -117,6 +147,7 @@ export function useTariffs(t: (key: string) => string) {
     closeModal,
     editTariff,
     form,
+    setForm,
     formLoading,
     formError,
     handleChange,

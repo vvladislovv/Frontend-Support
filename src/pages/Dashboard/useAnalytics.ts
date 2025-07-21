@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getBots, getTickets, getCRMConnections } from '../../api';
+interface UseAnalyticsReturn {
+  stats: AnalyticsStats | null;
+  loading: boolean;
+  error: string;
+}
 
 export interface AnalyticsStats {
   bots: number;
@@ -7,7 +12,7 @@ export interface AnalyticsStats {
   users: number;
 }
 
-export function useAnalytics(t: (key: string) => string) {
+export function useAnalytics(t: (key: string) => string): UseAnalyticsReturn {
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

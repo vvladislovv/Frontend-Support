@@ -1,6 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getClients, getSystemLoad, createClient, updateClient, deleteClient } from '../../api';
-import throttle from 'lodash.throttle';
+import { useState, useEffect, useCallback } from "react";
+import {
+  getClients,
+  getSystemLoad,
+  createClient,
+  updateClient,
+  deleteClient,
+} from "../../api";
+import type { SystemLoad } from "../../types";
+
+interface UseAdminReturn {
+  clients: AdminClient[];
+  systemLoad: SystemLoad;
+  loading: boolean;
+  error: string;
+  showModal: boolean;
+  openModal: (client?: AdminClient) => void;
+  closeModal: () => void;
+  editClient: AdminClient | null;
+  form: {
+    name: string;
+    email: string;
+    active: boolean;
+  };
+  setForm: React.Dispatch<
+    React.SetStateAction<{
+      name: string;
+      email: string;
+      active: boolean;
+    }>
+  >;
+  formLoading: boolean;
+  formError: string;
+  handleChange: (
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | { target: { name: string; value: string | boolean } }
+  ) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  handleDelete: (id: string) => void;
+  refreshData: () => Promise<void>;
+}
 
 export interface AdminClient {
   id: string;
@@ -10,30 +49,28 @@ export interface AdminClient {
   createdAt: string;
 }
 
-export interface SystemLoad {
-  cpu: number;
-  memory: number;
-}
-
-export function useAdmin(t: (key: string) => string) {
+export function useAdmin(t: (key: string) => string): UseAdminReturn {
   const [clients, setClients] = useState<AdminClient[]>([]);
-  const [systemLoad, setSystemLoad] = useState<SystemLoad>({ cpu: 0, memory: 0 });
+  const [systemLoad, setSystemLoad] = useState<SystemLoad>({
+    cpu: 0,
+    memory: 0,
+  });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editClient, setEditClient] = useState<AdminClient | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', active: true });
+  const [form, setForm] = useState({ name: "", email: "", active: true });
   const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const clientsData = await getClients();
       setClients(clientsData);
     } catch {
-      setError(t('errorLoadingData'));
+      setError(t("errorLoadingData"));
     } finally {
       setLoading(false);
     }
@@ -61,34 +98,44 @@ export function useAdmin(t: (key: string) => string) {
 
   const openModal = (client?: AdminClient) => {
     setEditClient(client || null);
-    setForm(client ? { 
-      name: client.name, 
-      email: client.email, 
-      active: client.active 
-    } : { 
-      name: '', 
-      email: '', 
-      active: true 
-    });
-    setFormError('');
+    setForm(
+      client
+        ? {
+            name: client.name,
+            email: client.email,
+            active: client.active,
+          }
+        : {
+            name: "",
+            email: "",
+            active: true,
+          }
+    );
+    setFormError("");
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditClient(null);
-    setFormError('');
+    setFormError("");
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: any } }) => {
+  const handleChange = (
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | { target: { name: string; value: string | boolean } }
+  ) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const throttledSubmit = throttle(async (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (formLoading) return; // Простая защита от двойного клика
+    
     setFormLoading(true);
-    setFormError('');
+    setFormError("");
     try {
       if (editClient) {
         await updateClient(editClient.id, form);
@@ -98,21 +145,19 @@ export function useAdmin(t: (key: string) => string) {
       closeModal();
       fetchClients();
     } catch {
-      setFormError(t('errorSavingData'));
+      setFormError(t("errorSavingData"));
     } finally {
       setFormLoading(false);
     }
-  }, 2000, { trailing: false });
-
-  const handleSubmit = (event: React.FormEvent) => throttledSubmit(event);
+  };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t('confirmDelete'))) return;
+    if (!window.confirm(t("confirmDelete"))) return;
     try {
       await deleteClient(id);
       fetchClients();
     } catch {
-      setError(t('errorDeletingData'));
+      setError(t("errorDeletingData"));
     }
   };
 
@@ -126,11 +171,12 @@ export function useAdmin(t: (key: string) => string) {
     closeModal,
     editClient,
     form,
+    setForm,
     formLoading,
     formError,
     handleChange,
     handleSubmit,
     handleDelete,
-    refreshData
+    refreshData,
   };
 }

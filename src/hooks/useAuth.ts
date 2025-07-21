@@ -3,6 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { getProfile, logout as apiLogout, login as apiLogin } from '../api';
 import { isTelegramWebApp, telegramAutoLogin } from '../telegram';
 import { setCookie, getCookie, clearAllAuthCookies, isAuthenticated, getAuthToken } from '../utils/cookies';
+// Локальное определение типа для useAuth
+interface UseAuthReturn {
+  isAuth: boolean;
+  isAdmin: boolean;
+  loading: boolean;
+  tgLoading: boolean;
+  handleLogout: () => void;
+  handleAuth: (profile: Profile) => void;
+  forceUpdate: number;
+}
 
 type Profile = {
   id: string;
@@ -11,7 +21,7 @@ type Profile = {
   role: string;
 };
 
-export function useAuth() {
+export function useAuth(): UseAuthReturn {
   const navigate = useNavigate();
   const [isAuth, setIsAuth] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -21,7 +31,7 @@ export function useAuth() {
   const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
-    async function checkAuth() {
+    async function checkAuth(): Promise<void> {
       // Если пользователь в процессе выхода, не проверяем авторизацию
       if (isLoggingOut) {
         return;

@@ -1,60 +1,241 @@
-import { useTranslation } from 'react-i18next';
-import { useBilling } from './useBilling';
-import { Button } from '../../components/common/Button';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useAppApi } from "../../hooks/useApi";
+import type { BillingPlan, Subscription, BillingStatus } from "../../types";
 
 const BillingPage: React.FC = () => {
-  const { t } = useTranslation();
-  const { plans, subscriptions, loading, error, throttledSubscribe } = useBilling(t);
+  const { billing } = useAppApi();
+  const [plans, setPlans] = useState<BillingPlan[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(
+    null
+  );
+  const [promoCode, setPromoCode] = useState<string>("");
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [plansData, subscriptionsData, statusData] = await Promise.all([
+        billing.getBillingPlans.execute(),
+        billing.getSubscriptions.execute(),
+        billing.getBillingStatus.execute(),
+      ]);
+      setPlans(plansData);
+      setSubscriptions(subscriptionsData);
+      setBillingStatus(statusData);
+    } catch (error) {
+      console.error("Error loading billing data:", error);
+    }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      const result = await billing.subscribeToPlan.execute(
+        planId,
+        undefined,
+        promoCode || undefined
+      );
+      if (result?.paymentUrl) {
+        window.open(result.paymentUrl, "_blank");
+      }
+      // Обновляем данные после подписки
+      loadData();
+    } catch (error) {
+      console.error("Error subscribing to plan:", error);
+    }
+  };
+
+  const formatPrice = (price: number, currency: string) => {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency: currency,
+    }).format(price);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "ACTIVE":
+        return "text-green-600 bg-green-100";
+      case "EXPIRED":
+        return "text-red-600 bg-red-100";
+      case "CANCELLED":
+        return "text-gray-600 bg-gray-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
 
   return (
-    <div className="max-w-2xl mx-auto bg-gray-50 p-8 rounded shadow mt-8 text-black relative">
-      <div className="mb-6 flex gap-4">
-        <Link to="/dashboard">
-          <Button variant="secondary">{t('backToMenu')}</Button>
-        </Link>
-        <Link to="/profile">
-          <Button variant="primary">{t('profile')}</Button>
-        </Link>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Биллинг и подписки
+        </h1>
+        <p className="text-gray-600">
+          Управляйте своими подписками и тарифными планами
+        </p>
       </div>
-      <h2 className="text-2xl font-bold mb-4">{t('billing')}</h2>
-      <div className="relative">
-        {error && <div className="text-red-500 mb-2">{error}</div>}
-        <h3 className="text-xl font-semibold mb-2">{t('plans')}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          {plans.map(plan => (
-            <div key={plan.id} className="border rounded p-4 bg-white">
-              <div className="font-bold text-lg mb-1">{plan.name}</div>
-              <div className="mb-2">{plan.description}</div>
-              <div className="mb-2 font-semibold">{plan.price} ₽</div>
-              <Button onClick={() => throttledSubscribe(plan.id)}>{t('subscribe')}</Button>
+
+      {/* Текущий статус */}
+      {billingStatus && (
+        <div className="bg-white rounded-lg shadow mb-8 p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">
+            Текущий статус
+          </h2>
+          {billingStatus.hasActiveSubscription ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Активный план</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {billingStatus.currentPlan?.name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  До{" "}
+                  {new Date(
+                    billingStatus.subscription?.endDate
+                  ).toLocaleDateString()}
+                </p>
+              </div>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                  billingStatus.subscription?.status
+                )}`}
+              >
+                {billingStatus.subscription?.status}
+              </span>
             </div>
-          ))}
+          ) : (
+            <p className="text-gray-500">У вас нет активных подписок</p>
+          )}
         </div>
-        <h3 className="text-xl font-semibold mb-2">{t('subscription')}</h3>
-        {subscriptions.length === 0 ? (
-          <div className="text-gray-500">{t('noActiveSubscription')}</div>
-        ) : (
-          <ul className="space-y-2">
-            {subscriptions.map(sub => (
-              <li key={sub.id} className="bg-green-100 p-3 rounded">
-                <div>{t('plan')}: {sub.planId}</div>
-                <div>{t('status')}: {sub.status}</div>
-                <div>{t('startDate')}: {sub.startDate}</div>
-                <div>{t('endDate')}: {sub.endDate}</div>
-              </li>
+      )}
+
+      {/* Тарифные планы */}
+      <div className="bg-white rounded-lg shadow mb-8">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">Доступные планы</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map((plan) => (
+              <div
+                key={plan.id}
+                className="border border-gray-200 rounded-lg p-6"
+              >
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {plan.name}
+                </h3>
+                <p className="text-3xl font-bold text-gray-900 mb-4">
+                  {formatPrice(plan.price, plan.currency)}
+                  <span className="text-sm font-normal text-gray-500">
+                    /месяц
+                  </span>
+                </p>
+                <ul className="space-y-2 mb-6">
+                  {plan.features.map((feature, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center text-sm text-gray-600"
+                    >
+                      <svg
+                        className="w-4 h-4 text-green-500 mr-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleSubscribe(plan.id)}
+                  disabled={billing.subscribeToPlan.loading}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {billing.subscribeToPlan.loading
+                    ? "Обработка..."
+                    : "Выбрать план"}
+                </button>
+              </div>
             ))}
-          </ul>
-        )}
-        {loading && (
-          <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10 text-lg text-blue-600">
-            <svg className="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
-            {t('loading')}
           </div>
-        )}
+
+          {/* Промокод */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Промокод (необязательно)
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Введите промокод"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* История подписок */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900">
+            История подписок
+          </h2>
+        </div>
+        <div className="p-6">
+          {subscriptions.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              У вас пока нет подписок
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {subscriptions.map((subscription) => {
+                const plan = plans.find((p) => p.id === subscription.planId);
+                return (
+                  <div
+                    key={subscription.id}
+                    className="border border-gray-200 rounded-lg p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-gray-900">
+                          {plan?.name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(
+                            subscription.startDate
+                          ).toLocaleDateString()}{" "}
+                          -{" "}
+                          {new Date(subscription.endDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                          subscription.status
+                        )}`}
+                      >
+                        {subscription.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-export default BillingPage; 
+export default BillingPage;

@@ -147,7 +147,7 @@ const TariffsPage: React.FC = () => {
                   checked={form.active}
                   onChange={(e) => handleChange({
                     target: { name: 'active', value: e.target.checked }
-                  } as any)}
+                  } as { target: { name: string; value: boolean } })}
                   className="w-4 h-4 text-blue-600 rounded"
                 />
                 <label htmlFor="active" className="text-sm font-medium tg-text">
@@ -273,7 +273,7 @@ const TariffsPage: React.FC = () => {
               checked={form.active}
               onChange={(e) => handleChange({
                 target: { name: 'active', value: e.target.checked }
-              } as any)}
+              } as { target: { name: string; value: boolean } })}
               className="rounded"
             />
             <label htmlFor="active" className="text-sm font-medium">

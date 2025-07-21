@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getCRMConnections } from '../../api';
+import type { CRMConnection } from '../../types';
+
+interface UseCRMReturn {
+  users: CRMUser[];
+  loading: boolean;
+  connections: CRMConnection[];
+  fetchConnections: () => Promise<void>;
+}
 
 export interface CRMUser {
   telegramId: string;
   name: string;
   email?: string;
 }
-export interface CRMConnection {
-  id: string;
-  provider: string;
-  accessToken: string;
-  expiresAt?: string;
-}
 
-export function useCRM() {
+export function useCRM(): UseCRMReturn {
   const [users, setUsers] = useState<CRMUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<CRMConnection[]>([]);

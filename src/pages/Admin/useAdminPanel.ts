@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getClients, getSystemLoad } from '../../api';
-import type { Client, SystemLoad } from '../../api';
+import type { Client, SystemLoad } from '../../types';
 
-export function useAdminPanel() {
+interface UseAdminPanelReturn {
+  clients: Client[];
+  systemLoad: SystemLoad;
+  loading: boolean;
+  refreshData: () => Promise<void>;
+}
+
+export function useAdminPanel(): UseAdminPanelReturn {
   const [clients, setClients] = useState<Client[]>([]);
   const [systemLoad, setSystemLoad] = useState<SystemLoad>({ cpu: 0, memory: 0 });
   const [loading, setLoading] = useState<boolean>(true);

@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getReferrals, createReferralLink } from '../../api';
+import type { ReferralLink } from '../../types';
+
+interface UseReferralsReturn {
+  referrals: ReferralLink[];
+  loading: boolean;
+  error: string;
+  newLink: string | null;
+  handleCreateLink: () => void;
+}
 import throttle from 'lodash.throttle';
 
-export interface Referral {
-  id: string;
-  userId: string;
-  code: string;
-  clicks: number;
-  conversions: number;
-  createdAt: string;
-}
-
-export function useReferrals(t: (key: string) => string) {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
+export function useReferrals(t: (key: string) => string): UseReferralsReturn {
+  const [referrals, setReferrals] = useState<ReferralLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [newLink, setNewLink] = useState<string | null>(null);

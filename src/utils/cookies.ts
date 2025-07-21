@@ -1,6 +1,6 @@
 // Утилиты для работы с cookies
 
-export const setCookie = (name: string, value: string, days: number = 30) => {
+export const setCookie = (name: string, value: string, days: number = 30): void => {
   const expires = new Date();
   expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
@@ -17,11 +17,11 @@ export const getCookie = (name: string): string | null => {
   return null;
 };
 
-export const deleteCookie = (name: string) => {
+export const deleteCookie = (name: string): void => {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
 
-export const clearAllAuthCookies = () => {
+export const clearAllAuthCookies = (): void => {
   // Удаляем все возможные cookies связанные с авторизацией
   const cookiesToDelete = [
     'auth_token',

@@ -27,9 +27,11 @@ import SettingsPage from './pages/SettingsPage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AdminPage from './pages/Admin/AdminPage';
 import TariffsPage from './pages/Admin/TariffsPage';
+import PromoCodesPage from './pages/Admin/PromoCodesPage';
 import SystemLogsPage from './pages/Admin/SystemLogsPage';
 import SystemMonitorPage from './pages/Admin/SystemMonitorPage';
 import NotFound from './pages/NotFound';
+import ApiTestPage from './pages/ApiTestPage';
 
 export default function App() {
   const { t } = useTranslation();
@@ -185,6 +187,11 @@ export default function App() {
               <SettingsPage />
             </ProtectedRoute>
           } />
+          <Route path="/api-test" element={
+            <ProtectedRoute isAuth={isAuth} loading={loading}>
+              <ApiTestPage />
+            </ProtectedRoute>
+          } />
           
           {/* Admin Routes - требуют авторизации и прав админа */}
           <Route path="/admin" element={
@@ -200,6 +207,11 @@ export default function App() {
           <Route path="/admin/tariffs" element={
             <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
               <TariffsPage />
+            </AdminRoute>
+          } />
+          <Route path="/admin/promo-codes" element={
+            <AdminRoute isAuth={isAuth} isAdmin={isAdmin} loading={loading}>
+              <PromoCodesPage />
             </AdminRoute>
           } />
           <Route path="/admin/monitor" element={
