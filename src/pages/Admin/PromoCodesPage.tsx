@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useAppApi } from '../../hooks/useApi';
+import { adminService } from '../../services';
 import type { PromoCode } from '../../types';
 
 const PromoCodesPage: React.FC = () => {
-  const { admin } = useAppApi();
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
   const [formData, setFormData] = useState({
@@ -23,26 +23,32 @@ const PromoCodesPage: React.FC = () => {
 
   const loadPromoCodes = async () => {
     try {
-      const data = await admin.getPromoCodes.execute();
+      setLoading(true);
+      const data = await adminService.getPromoCodes();
       setPromoCodes(data);
     } catch (error) {
       console.error('Error loading promo codes:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setLoading(true);
       if (editingPromo) {
-        const updated = await admin.updatePromoCode.execute(editingPromo.id, formData);
+        const updated = await adminService.updatePromoCode(editingPromo.id, formData);
         setPromoCodes(prev => prev.map(p => p.id === editingPromo.id ? updated : p));
       } else {
-        const newPromo = await admin.createPromoCode.execute(formData);
+        const newPromo = await adminService.createPromoCode(formData);
         setPromoCodes(prev => [...prev, newPromo]);
       }
       resetForm();
     } catch (error) {
       console.error('Error saving promo code:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,10 +68,13 @@ const PromoCodesPage: React.FC = () => {
 
   const handleToggle = async (id: string) => {
     try {
-      const updated = await admin.togglePromoCode.execute(id);
+      setLoading(true);
+      const updated = await adminService.togglePromoCode(id);
       setPromoCodes(prev => prev.map(p => p.id === id ? updated : p));
     } catch (error) {
       console.error('Error toggling promo code:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,10 +82,13 @@ const PromoCodesPage: React.FC = () => {
     if (!confirm('Вы уверены, что хотите удалить этот промокод?')) return;
     
     try {
-      await admin.deletePromoCode.execute(id);
+      setLoading(true);
+      await adminService.deletePromoCode(id);
       setPromoCodes(prev => prev.filter(p => p.id !== id));
     } catch (error) {
       console.error('Error deleting promo code:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -322,10 +334,10 @@ const PromoCodesPage: React.FC = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  disabled={admin.createPromoCode.loading || admin.updatePromoCode.loading}
+                  disabled={loading}
                   className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {(admin.createPromoCode.loading || admin.updatePromoCode.loading) 
+                  {loading 
                     ? 'Сохранение...' 
                     : editingPromo ? 'Обновить' : 'Создать'
                   }

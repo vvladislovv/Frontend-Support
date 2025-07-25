@@ -1,144 +1,119 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  getTickets,
-  createTicket,
-  updateTicket,
-  deleteTicket,
-} from "../../api";
-import type { Ticket } from "../../types";
+import { useState, useEffect } from 'react';
+import { ticketService } from '../../services';
+import { handleTicketError, handleApiError } from '../../utils/errorHandler';
+import type { Ticket } from '../../types';
 
-interface TicketFormData {
-  subject: string;
-  message: string;
-  botId: string;
-  telegramId: string;
-  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
-}
-
-interface UseTicketsReturn {
-  tickets: Ticket[];
-  loading: boolean;
-  error: string;
-  showModal: boolean;
-  openModal: (ticket?: Ticket) => void;
-  closeModal: () => void;
-  editTicket: Ticket | null;
-  form: TicketFormData;
-  setForm: React.Dispatch<React.SetStateAction<TicketFormData>>;
-  formLoading: boolean;
-  formError: string;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  handleSubmit: (e: React.FormEvent) => void;
-  handleDelete: (id: string) => void;
-}
-import throttle from "lodash.throttle";
-
-export function useTickets(t: (key: string) => string): UseTicketsReturn {
+export const useTickets = (t: (key: string) => string) => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
-  const [form, setForm] = useState<TicketFormData>({
-    subject: "",
-    message: "",
-    botId: "",
-    telegramId: "",
-    status: "OPEN",
-  });
   const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    subject: '',
+    message: '',
+    telegramId: '',
+    botId: '1',
+    status: 'OPEN' as const
+  });
 
-  const fetchTickets = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadTickets = async () => {
     try {
-      const tickets = await getTickets();
-      setTickets(tickets);
-    } catch {
-      setError(t("errorLoadingData"));
+      setLoading(true);
+      setError(null);
+      const data = await ticketService.getTickets();
+      setTickets(data);
+    } catch (err) {
+      setError(handleApiError(err, { context: 'load_tickets' }));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  };
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    loadTickets();
+  }, []);
 
   const openModal = (ticket?: Ticket) => {
-    setEditTicket(ticket || null);
-    setForm(
-      ticket
-        ? {
-            subject: ticket.subject,
-            message: ticket.message,
-            botId: ticket.botId,
-            telegramId: ticket.telegramId,
-            status: ticket.status,
-          }
-        : {
-            subject: "",
-            message: "",
-            botId: "",
-            telegramId: "",
-            status: "OPEN",
-          }
-    );
-    setFormError("");
+    if (ticket) {
+      setEditTicket(ticket);
+      setForm({
+        subject: ticket.subject,
+        message: ticket.message,
+        telegramId: ticket.telegramId,
+        botId: ticket.botId,
+        status: ticket.status
+      });
+    } else {
+      setEditTicket(null);
+      setForm({
+        subject: '',
+        message: '',
+        telegramId: '',
+        botId: '1',
+        status: 'OPEN'
+      });
+    }
+    setFormError(null);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditTicket(null);
-    setForm({
-      subject: "",
-      message: "",
-      botId: "",
-      telegramId: "",
-      status: "OPEN",
-    });
-    setFormError("");
+    setFormError(null);
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const throttledSubmit = throttle(
-    async (event: React.FormEvent) => {
-      event.preventDefault();
-      setFormLoading(true);
-      setFormError("");
-      try {
-        if (editTicket) {
-          await updateTicket(editTicket.id, form);
-        } else {
-          await createTicket(form);
-        }
-        closeModal();
-        fetchTickets();
-      } catch {
-        setFormError(t("errorLoadingData"));
-      } finally {
-        setFormLoading(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setFormError(null);
+
+    try {
+      if (editTicket) {
+        await ticketService.updateTicket(editTicket.id, {
+          subject: form.subject,
+          message: form.message,
+          telegramId: form.telegramId,
+          status: form.status
+        });
+      } else {
+        await ticketService.createTicket({
+          subject: form.subject,
+          message: form.message,
+          telegramId: form.telegramId,
+          botId: parseInt(form.botId),
+          status: form.status
+        });
       }
-    },
-    2000,
-    { trailing: false }
-  );
-  const handleSubmit = (event: React.FormEvent) => throttledSubmit(event);
+      
+      await loadTickets();
+      closeModal();
+    } catch (err) {
+      setFormError(handleTicketError(err));
+    } finally {
+      setFormLoading(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t("delete") + "?")) return;
+    if (!confirm(t('confirmDelete'))) return;
+
     try {
-      await deleteTicket(id);
-      fetchTickets();
-    } catch {
-      /* no-op */
+      setLoading(true);
+      await ticketService.deleteTicket(id);
+      await loadTickets();
+    } catch (err) {
+      setError(handleApiError(err, { context: 'delete_ticket' }));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,11 +126,10 @@ export function useTickets(t: (key: string) => string): UseTicketsReturn {
     closeModal,
     editTicket,
     form,
-    setForm,
     formLoading,
     formError,
     handleChange,
     handleSubmit,
-    handleDelete,
+    handleDelete
   };
-}
+};

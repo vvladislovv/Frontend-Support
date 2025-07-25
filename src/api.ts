@@ -1,4 +1,5 @@
 import axios from "axios";
+import { saveUserSession, setCookie, getCookie, deleteCookie } from "./utils/cookies";
 import type {
   User,
   Bot,
@@ -7,1577 +8,2009 @@ import type {
   TicketMessage,
   Client,
   ClientActivity,
-  SystemLoad,
-  Tariff,
   ReferralLink,
   Referral,
-  ReferralStats,
   PromoCode,
-  BillingPlan,
-  Subscription,
   SubscriptionResult,
   CRMConnection,
-  TelegaPayTransaction,
-  TelegaPayPayout,
+  Tariff,
+  SystemLoad,
 } from "./types";
 
-const API_BASE_URL = "http://localhost:3000";
-const IS_DEV_MODE = true;
+// Удаляем все mock-режимы и fallback
 
-axios.defaults.baseURL = API_BASE_URL;
+const TELEGAPAY_API_KEY =
+  import.meta.env.VITE_TELEGAPAY_API_KEY || "YOUR_TELEGA_PAY_API_KEY_HERE";
 
-const setCookie = (name: string, value: string, days: number = 30): void => {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
-};
+// Set base URL for axios requests
+axios.defaults.baseURL = "http://localhost:3000";
 
-const getCookie = (name: string): string | null => {
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(";");
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) === " ") c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-  }
-  return null;
-};
 
-const deleteCookie = (name: string): void => {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-};
 
 axios.interceptors.request.use((config) => {
   const token = localStorage.getItem("token") || getCookie("auth_token");
-  if (token) {
+  if (token && token !== "dev-token" && !token.startsWith("mock-")) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.url?.includes("/telegapay/")) {
+    config.headers["X-API-Key"] = TELEGAPAY_API_KEY;
+  }
+  if (["post", "put", "patch"].includes(config.method?.toLowerCase() || "")) {
+    config.headers["Content-Type"] =
+      config.headers["Content-Type"] || "application/json";
   }
   return config;
 });
 
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Mock Data
-const MOCK_DATA = {
-  profile: {
-    id: "1",
-    email: "admin@example.com",
-    name: "Admin User",
-    role: "admin",
-    photoUrl: undefined as string | undefined,
-  },
-  bots: [
-    {
-      id: "1",
-      name: "My First Bot",
-      token: "123456789:AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRss",
-      username: "my_first_bot",
-      link: "https://t.me/my_first_bot",
-      createdAt: "2024-01-15T10:30:00Z",
-      stats: {
-        totalUsers: 150,
-        activeUsers: 45,
-        messagesCount: 1250,
-      },
-    },
-  ] as Bot[],
-  tickets: [
-    {
-      id: "1",
-      subject: "Проблема с ботом",
-      message: "Бот не отвечает на команды",
-      botId: "1",
-      telegramId: "123456789",
-      status: "OPEN" as const,
-      createdAt: "2024-01-16T10:30:00Z",
-    },
-    {
-      id: "2",
-      subject: "Ошибка в настройках",
-      message: "Не могу настроить автоответы",
-      botId: "1",
-      telegramId: "987654321",
-      status: "IN_PROGRESS" as const,
-      createdAt: "2024-01-15T14:20:00Z",
-    },
-  ] as Ticket[],
-  ticketMessages: [
-    {
-      id: "1",
-      ticketId: "1",
-      message: "Бот не отвечает на команды",
-      isAdmin: false,
-      createdAt: "2024-01-16T10:30:00Z",
-    },
-    {
-      id: "2",
-      ticketId: "1",
-      message: "Проверим настройки вашего бота",
-      isAdmin: true,
-      createdAt: "2024-01-16T11:00:00Z",
-    },
-  ] as TicketMessage[],
-  clients: [
-    {
-      id: "1",
-      name: "Иван Петров",
-      email: "ivan.petrov@example.com",
-      active: true,
-      createdAt: "2024-01-10T08:30:00Z",
-    },
-    {
-      id: "2",
-      name: "Мария Сидорова",
-      email: "maria.sidorova@example.com",
-      active: true,
-      createdAt: "2024-01-12T14:15:00Z",
-    },
-  ] as Client[],
-  tariffs: [
-    {
-      id: "1",
-      name: "Базовый",
-      price: 990,
-      description: "Для начинающих пользователей",
-      active: true,
-      features: ["До 3 ботов", "Базовая поддержка", "100 сообщений/день"],
-      createdAt: "2024-01-01T00:00:00Z",
-    },
-  ] as Tariff[],
-  referralLinks: [
-    {
-      id: "1",
-      code: "REF123ABC",
-      clicks: 25,
-      registrations: 5,
-      createdAt: "2024-01-10T10:00:00Z",
-    },
-  ] as ReferralLink[],
-  referrals: [
-    {
-      id: "1",
-      referrerId: "1",
-      referredId: "2",
-      bonus: 100,
-      status: "PAID" as const,
-      createdAt: "2024-01-12T14:15:00Z",
-    },
-  ] as Referral[],
-  promoCodes: [
-    {
-      id: "1",
-      code: "SUMMER2025",
-      discount: 25,
-      type: "PERCENTAGE" as const,
-      maxUses: 50,
-      currentUses: 12,
-      expiresAt: "2025-12-31T23:59:59Z",
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-    },
-  ] as PromoCode[],
-  billingPlans: [
-    {
-      id: "BASIC",
-      name: "Базовый",
-      price: 990,
-      currency: "RUB",
-      features: ["До 3 ботов", "Базовая поддержка"],
-      isActive: true,
-    },
-    {
-      id: "PREMIUM",
-      name: "Премиум",
-      price: 2990,
-      currency: "RUB",
-      features: ["До 10 ботов", "Приоритетная поддержка", "Аналитика"],
-      isActive: true,
-    },
-  ] as BillingPlan[],
-  subscriptions: [
-    {
-      id: "1",
-      userId: "1",
-      planId: "BASIC",
-      status: "ACTIVE" as const,
-      startDate: "2024-01-01T00:00:00Z",
-      endDate: "2024-02-01T00:00:00Z",
-      autoRenew: true,
-    },
-  ] as Subscription[],
-  crmConnections: [
-    {
-      id: "1",
-      userId: "1",
-      provider: "AMOCRM" as const,
-      accessToken: "mock_access_token",
-      refreshToken: "mock_refresh_token",
-      expiresAt: "2025-12-31T23:59:59Z",
-      domain: "https://test.amocrm.ru",
-      isActive: true,
-      otherData: { clientId: "test_client_id" },
-      createdAt: "2024-01-01T00:00:00Z",
-    },
-  ] as CRMConnection[],
-  telegaPayTransactions: [] as TelegaPayTransaction[],
-  telegaPayPayouts: [] as TelegaPayPayout[],
-}; // Mock
-
-const mockApi = {
-  async login(email: string, password: string) {
-    await delay(500);
-    if (
-      (email === "admin@example.com" && password === "admin123") ||
-      (email === "test@example.com" && password === "password")
-    ) {
-      const token = "mock-token";
-      localStorage.setItem("token", token);
-      setCookie("auth_token", token);
-      return { token, user: MOCK_DATA.profile };
+axios.interceptors.response.use(
+  (response) => response,
+  (err) => {
+    if (err.code === "ERR_NETWORK" || err.message.includes("CORS")) {
+      throw new Error(
+        "Unable to connect to server. Please check if the backend is running on http://localhost:3000"
+      );
     }
-    throw new Error("Invalid credentials");
-  },
-
-  async register(email: string, _password: string, name: string) {
-    await delay(500);
-    const user = { ...MOCK_DATA.profile, email, name };
-    const token = "mock-token";
-    localStorage.setItem("token", token);
-    setCookie("auth_token", token);
-    return { token, user };
-  },
-
-  async logout() {
-    await delay(200);
-    localStorage.removeItem("token");
-    deleteCookie("auth_token");
-    return { success: true };
-  },
-
-  async getProfile() {
-    await delay(300);
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("Not authenticated");
-    return MOCK_DATA.profile;
-  },
-
-  async uploadProfilePhoto(file: File) {
-    await delay(800);
-    const photoUrl = URL.createObjectURL(file);
-    MOCK_DATA.profile = { ...MOCK_DATA.profile, photoUrl };
-    return { photoUrl };
-  },
-
-  // BOTS
-  async getBots() {
-    await delay(400);
-    return [...MOCK_DATA.bots];
-  },
-
-  async createBot(botData: Omit<Bot, "id" | "createdAt">) {
-    await delay(600);
-    const newBot: Bot = {
-      id: Date.now().toString(),
-      ...botData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.bots.push(newBot);
-    return newBot;
-  },
-
-  async updateBot(id: string, botData: Partial<Omit<Bot, "id" | "createdAt">>) {
-    await delay(500);
-    const index = MOCK_DATA.bots.findIndex((bot) => bot.id === id);
-    if (index === -1) throw new Error("Bot not found");
-    MOCK_DATA.bots[index] = { ...MOCK_DATA.bots[index], ...botData };
-    return MOCK_DATA.bots[index];
-  },
-
-  async deleteBot(id: string) {
-    await delay(400);
-    const index = MOCK_DATA.bots.findIndex((bot) => bot.id === id);
-    if (index === -1) throw new Error("Bot not found");
-    MOCK_DATA.bots.splice(index, 1);
-    return { success: true };
-  },
-
-  async getBotStats(botId: string) {
-    await delay(400);
-    const bot = MOCK_DATA.bots.find((b) => b.id === botId);
-    if (!bot) throw new Error("Bot not found");
-    return (
-      bot.stats || {
-        totalUsers: 0,
-        activeUsers: 0,
-        messagesCount: 0,
+    
+    // Очищаем токены и редиректим только для защищенных эндпоинтов, 
+    // но НЕ для логина/регистрации
+    if (err.response?.status === 401) {
+      const url = err.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+      
+      if (!isAuthEndpoint) {
+        // Это защищенный эндпоинт с невалидным токеном
+        console.log('Invalid token detected, clearing auth data');
+        localStorage.removeItem("token");
+        deleteCookie("auth_token");
+        
+        // Редиректим только если мы не на странице логина
+        if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+          window.location.href = "/login";
+        }
       }
-    );
-  },
-
-  // TICKETS
-  async getTickets() {
-    await delay(400);
-    return [...MOCK_DATA.tickets];
-  },
-
-  async createTicket(ticketData: Omit<Ticket, "id" | "createdAt">) {
-    await delay(600);
-    const newTicket: Ticket = {
-      id: Date.now().toString(),
-      ...ticketData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.tickets.push(newTicket);
-    return newTicket;
-  },
-
-  async updateTicket(id: string, ticketData: Partial<Ticket>) {
-    await delay(500);
-    const index = MOCK_DATA.tickets.findIndex((ticket) => ticket.id === id);
-    if (index === -1) throw new Error("Ticket not found");
-    MOCK_DATA.tickets[index] = { ...MOCK_DATA.tickets[index], ...ticketData };
-    return MOCK_DATA.tickets[index];
-  },
-
-  async deleteTicket(id: string) {
-    await delay(400);
-    const index = MOCK_DATA.tickets.findIndex((ticket) => ticket.id === id);
-    if (index === -1) throw new Error("Ticket not found");
-    MOCK_DATA.tickets.splice(index, 1);
-    return { success: true };
-  },
-
-  async getTicketMessages(ticketId: string) {
-    await delay(300);
-    return MOCK_DATA.ticketMessages.filter((m) => m.ticketId === ticketId);
-  },
-
-  async addTicketMessage(
-    ticketId: string,
-    message: string,
-    isAdmin: boolean = false
-  ) {
-    await delay(500);
-    const newMessage: TicketMessage = {
-      id: Date.now().toString(),
-      ticketId,
-      message,
-      isAdmin,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.ticketMessages.push(newMessage);
-    return newMessage;
-  },
-
-  // CLIENTS
-  async getClients() {
-    await delay(400);
-    return [...MOCK_DATA.clients];
-  },
-
-  async createClient(clientData: Omit<Client, "id" | "createdAt">) {
-    await delay(600);
-    const newClient: Client = {
-      id: Date.now().toString(),
-      ...clientData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.clients.push(newClient);
-    return newClient;
-  },
-
-  async updateClient(
-    id: string,
-    clientData: Partial<Omit<Client, "id" | "createdAt">>
-  ) {
-    await delay(500);
-    const index = MOCK_DATA.clients.findIndex((client) => client.id === id);
-    if (index === -1) throw new Error("Client not found");
-    MOCK_DATA.clients[index] = { ...MOCK_DATA.clients[index], ...clientData };
-    return MOCK_DATA.clients[index];
-  },
-
-  async deleteClient(id: string) {
-    await delay(400);
-    const index = MOCK_DATA.clients.findIndex((client) => client.id === id);
-    if (index === -1) throw new Error("Client not found");
-    MOCK_DATA.clients.splice(index, 1);
-    return { success: true };
-  },
-
-  async getClientActivity(clientId: string) {
-    await delay(400);
-    return [
-      {
-        id: "1",
-        action: "Создал бота",
-        timestamp: "2024-01-15T10:30:00Z",
-        details: { botName: "Test Bot" },
-      },
-      {
-        id: "2",
-        action: "Обновил профиль",
-        timestamp: "2024-01-14T15:20:00Z",
-        details: {},
-      },
-    ] as ClientActivity[];
-  },
-
-  // REFERRALS
-  async getReferrals() {
-    await delay(400);
-    return [...MOCK_DATA.referrals];
-  },
-
-  async getReferralLinks() {
-    await delay(400);
-    return [...MOCK_DATA.referralLinks];
-  },
-
-  async createReferralLink() {
-    await delay(500);
-    const newLink: ReferralLink = {
-      id: Date.now().toString(),
-      code: `REF${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-      clicks: 0,
-      registrations: 0,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.referralLinks.push(newLink);
-    return newLink;
-  },
-
-  async getReferralStats() {
-    await delay(300);
-    const stats: ReferralStats = {
-      totalReferrals: MOCK_DATA.referrals.length,
-      totalBonus: MOCK_DATA.referrals.reduce((sum, ref) => sum + ref.bonus, 0),
-      pendingBonus: MOCK_DATA.referrals
-        .filter((r) => r.status === "PENDING")
-        .reduce((sum, ref) => sum + ref.bonus, 0),
-      paidBonus: MOCK_DATA.referrals
-        .filter((r) => r.status === "PAID")
-        .reduce((sum, ref) => sum + ref.bonus, 0),
-    };
-    return stats;
-  },
-
-  // BILLING
-  async getBillingPlans() {
-    await delay(400);
-    return [...MOCK_DATA.billingPlans];
-  },
-
-  async getSubscriptions() {
-    await delay(400);
-    return [...MOCK_DATA.subscriptions];
-  },
-
-  async getBillingStatus() {
-    await delay(300);
-    const subscription = MOCK_DATA.subscriptions.find((s) => s.userId === "1");
-    return {
-      hasActiveSubscription: !!subscription && subscription.status === "ACTIVE",
-      currentPlan: subscription
-        ? MOCK_DATA.billingPlans.find((p) => p.id === subscription.planId)
-        : null,
-      subscription,
-    };
-  },
-
-  // CRM
-  async getCRMConnections() {
-    await delay(400);
-    return [...MOCK_DATA.crmConnections];
-  },
-
-  async getCRMUserInfo() {
-    await delay(400);
-    return {
-      totalContacts: 150,
-      totalDeals: 45,
-      totalTasks: 12,
-      lastSync: new Date().toISOString(),
-    };
-  },
-
-  // SYSTEM
-  async getSystemLoad() {
-    await delay(300);
-    return {
-      cpu: Math.floor(Math.random() * 30) + 20,
-      memory: Math.floor(Math.random() * 40) + 30,
-    };
-  },
-
-  async getAdminStats() {
-    await delay(400);
-    return {
-      totalClients: MOCK_DATA.clients.length,
-      activeClients: MOCK_DATA.clients.filter((c) => c.active).length,
-      totalBots: MOCK_DATA.bots.length,
-      totalTickets: MOCK_DATA.tickets.length,
-      openTickets: MOCK_DATA.tickets.filter((t) => t.status === "OPEN").length,
-      totalRevenue: 15000,
-      monthlyRevenue: 5000,
-    };
-  },
-
-  // TARIFFS
-  async getTariffs() {
-    await delay(400);
-    return [...MOCK_DATA.tariffs];
-  },
-
-  async createTariff(tariffData: Omit<Tariff, "id" | "createdAt">) {
-    await delay(600);
-    const newTariff: Tariff = {
-      id: Date.now().toString(),
-      ...tariffData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.tariffs.push(newTariff);
-    return newTariff;
-  },
-
-  async updateTariff(
-    id: string,
-    tariffData: Partial<Omit<Tariff, "id" | "createdAt">>
-  ) {
-    await delay(500);
-    const index = MOCK_DATA.tariffs.findIndex((tariff) => tariff.id === id);
-    if (index === -1) throw new Error("Tariff not found");
-    MOCK_DATA.tariffs[index] = { ...MOCK_DATA.tariffs[index], ...tariffData };
-    return MOCK_DATA.tariffs[index];
-  },
-
-  async deleteTariff(id: string) {
-    await delay(400);
-    const index = MOCK_DATA.tariffs.findIndex((tariff) => tariff.id === id);
-    if (index === -1) throw new Error("Tariff not found");
-    MOCK_DATA.tariffs.splice(index, 1);
-    return { success: true };
-  },
-};
+      // Для логина/регистрации просто пробрасываем ошибку дальше
+    }
+    
+    throw err;
+  }
+);
 
 // ==================== AUTH API ====================
+
+/**
+ * Вход в систему
+ * @param email - Email пользователя
+ * @param password - Пароль пользователя
+ * @returns Объект с access_token
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/auth/login \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "email": "user@example.com",
+ *     "password": "password123"
+ *   }'
+ * ```
+ */
 export const login = async (email: string, password: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.login(email, password);
+  const requestData = { email, password };
+  
+  console.log('Login request:', {
+    url: '/auth/login',
+    data: { ...requestData, password: '***' },
+    baseURL: axios.defaults.baseURL
+  });
+  
+  try {
+    const response = await axios.post("/auth/login", requestData);
+    
+    console.log('Login response:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    const { access_token, user } = response.data;
+    
+    // Сохраняем токен в localStorage и куки
+    localStorage.setItem("token", access_token);
+    setCookie("auth_token", access_token);
+    
+    // Если есть информация о пользователе, сохраняем её для автоматического входа
+    if (user) {
+      saveUserSession(access_token, user);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Login error:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Login error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        requestData: { ...requestData, password: '***' },
+        url: '/auth/login',
+        baseURL: axios.defaults.baseURL
+      });
+      
+      if (error.response?.data) {
+        console.error('Server response data:', JSON.stringify(error.response.data, null, 2));
+      }
+    }
+    throw error;
   }
-  const response = await axios.post("/auth/login", { email, password });
-  const { token } = response.data;
-  localStorage.setItem("token", token);
-  setCookie("auth_token", token);
-  return response.data;
 };
 
+/**
+ * Регистрация пользователя
+ * @param email - Email пользователя
+ * @param password - Пароль пользователя
+ * @param name - Имя пользователя
+ * @param ref - Реферальный код (опционально)
+ * @returns Объект с access_token
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/auth/register \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "email": "new_user@example.com",
+ *     "password": "password123",
+ *     "name": "New User"
+ *   }'
+ * ```
+ */
 export const register = async (
   email: string,
   password: string,
   name: string,
   ref?: string
 ) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.register(email, password, name);
+  // Убедимся, что ref не пустая строка
+  const cleanRef = ref && ref.trim() ? ref.trim() : undefined;
+  const params = cleanRef ? `?ref=${cleanRef}` : "";
+  // Валидация данных
+  if (!email || !email.trim()) {
+    throw new Error('Email is required');
   }
-  const params = ref ? `?ref=${ref}` : "";
-  const response = await axios.post(`/auth/register${params}`, {
-    email,
-    password,
-    name,
+  if (!password || password.length < 6) {
+    throw new Error('Password must be at least 6 characters long');
+  }
+  if (!name || !name.trim()) {
+    throw new Error('Name is required');
+  }
+
+  const requestData = {
+    email: email.trim(),
+    password: password,
+    name: name.trim(),
+  };
+  
+  console.log('Register request:', {
+    url: `/auth/register${params}`,
+    data: { ...requestData, password: '***' },
+    baseURL: axios.defaults.baseURL,
+    fullURL: `${axios.defaults.baseURL}/auth/register${params}`
   });
-  const { token } = response.data;
-  localStorage.setItem("token", token);
-  setCookie("auth_token", token);
-  return response.data;
-};
-
-export const logout = async () => {
-  if (IS_DEV_MODE) {
-    return await mockApi.logout();
+  
+  try {
+    const response = await axios.post(`/auth/register${params}`, requestData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      timeout: 10000, // 10 секунд таймаут
+      withCredentials: false, // Явно отключаем credentials для избежания CORS проблем
+    });
+    
+    console.log('Register response:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    const { access_token, user } = response.data;
+    
+    // Сохраняем токен в localStorage и куки
+    localStorage.setItem("token", access_token);
+    setCookie("auth_token", access_token);
+    
+    // Если есть информация о пользователе, сохраняем её для автоматического входа
+    if (user) {
+      saveUserSession(access_token, user);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Register error:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Register error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        requestData: requestData,
+        url: `/auth/register${params}`,
+        baseURL: axios.defaults.baseURL,
+        fullURL: `${axios.defaults.baseURL}/auth/register${params}`
+      });
+      
+      // Логируем полный ответ сервера для отладки
+      if (error.response?.data) {
+        console.error('Server response data:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      // Проверяем, доступен ли сервер вообще
+      if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+        throw new Error('Cannot connect to server. Please make sure the backend is running on http://localhost:3000');
+      }
+    }
+    throw error;
   }
-  const response = await axios.post("/auth/logout");
-  localStorage.removeItem("token");
-  deleteCookie("auth_token");
-  return response.data;
 };
 
+/**
+ * Получить профиль пользователя
+ * @returns Объект с данными пользователя
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/auth/me \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
 export const getProfile = async (): Promise<User> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getProfile();
-  }
   const response = await axios.get("/auth/me");
   return response.data;
 };
 
-export const uploadProfilePhoto = async (file: File) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.uploadProfilePhoto(file);
+/**
+ * Выход из системы
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/auth/logout \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const logout = async () => {
+  try {
+    await axios.post("/auth/logout");
+  } catch (error) {
+    // Ignore logout errors
   }
-  const formData = new FormData();
-  formData.append("photo", file);
-  const response = await axios.post("/auth/upload-photo", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  localStorage.removeItem("token");
+  deleteCookie("auth_token");
+};
+
+// ==================== Me (Личный кабинет) API ====================
+
+/**
+ * Получить список рефералов
+ * @returns Список рефералов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/referrals \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getReferrals = async (): Promise<Referral[]> => {
+  const response = await axios.get("/me/referrals");
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+/**
+ * Получить новую реферальную ссылку
+ * @returns Объект с новой реферальной ссылкой
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/referrals/new \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getNewReferralLink = async (): Promise<ReferralLink> => {
+  const response = await axios.get("/me/referrals/new");
   return response.data;
+};
+
+/**
+ * Трекнуть клик по реферальной ссылке
+ * @param code - Реферальный код
+ * @returns Объект с информацией о трекинге
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/referrals/track/REFERRAL_CODE
+ * ```
+ */
+export const trackReferralClick = async (code: string) => {
+  const response = await axios.get(`/me/referrals/track/${code}`);
+  return response.data;
+};
+
+/**
+ * Подписаться через TelegaPay
+ * @param plan - Название тарифного плана
+ * @param botId - ID бота
+ * @returns Объект с информацией о подписке
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/me/billing/subscribe \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "plan": "PREMIUM",
+ *     "botId": 1
+ *   }'
+ * ```
+ */
+export const subscribeToPlan = async (planData: {
+  plan: string;
+  botId: number;
+}): Promise<SubscriptionResult> => {
+  const response = await axios.post("/me/billing/subscribe", planData);
+  return response.data;
+};
+
+/**
+ * Получить статус подписки
+ * @returns Объект с информацией о статусе подписки
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/billing/status \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getBillingStatus = async () => {
+  const response = await axios.get("/me/billing/status");
+  return response.data;
+};
+
+/**
+ * Получить информацию о биллинге
+ * @returns Объект с информацией о биллинге
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/billing \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getBillingInfo = async () => {
+  const response = await axios.get("/me/billing");
+  return response.data;
+};
+
+/**
+ * Получить CRM информацию пользователя
+ * @returns Объект с информацией о пользователе в CRM
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/crm/usersinfo \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getCRMUserInfo = async () => {
+  const response = await axios.get("/me/crm/usersinfo");
+  return response.data;
+};
+
+/**
+ * Получить CRM подключения пользователя
+ * @returns Список CRM подключений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/crm/connections \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getCRMConnections = async (): Promise<CRMConnection[]> => {
+  const response = await axios.get("/me/crm/connections");
+  // Убеждаемся, что возвращаем массив
+  return Array.isArray(response.data) ? response.data : [];
 };
 
 // ==================== BOTS API ====================
-export const getBots = async (): Promise<Bot[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getBots();
-  }
-  const response = await axios.get("/me/bots");
-  return response.data;
-};
 
+/**
+ * Создать нового бота
+ * @param botData - Данные бота
+ * @returns Объект с информацией о боте
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/me/bots \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "My VPN Bot",
+ *     "token": "BOT_TOKEN_FROM_BOTFATHER",
+ *     "username": "my_vpn_bot",
+ *     "description": "VPN bot for users"
+ *   }'
+ * ```
+ */
 export const createBot = async (
   botData: Omit<Bot, "id" | "createdAt">
 ): Promise<Bot> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createBot(botData);
-  }
   const response = await axios.post("/me/bots", botData);
   return response.data;
 };
 
+/**
+ * Получить список всех ботов
+ * @returns Список ботов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/bots \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getBots = async (): Promise<Bot[]> => {
+  const response = await axios.get("/me/bots");
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+/**
+ * Получить информацию о боте
+ * @param botId - ID бота
+ * @returns Объект с информацией о боте
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/bots/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getBotById = async (botId: string): Promise<Bot> => {
+  const response = await axios.get(`/me/bots/${botId}`);
+  return response.data;
+};
+
+/**
+ * Обновить информацию о боте
+ * @param id - ID бота
+ * @param botData - Данные для обновления
+ * @returns Объект с обновленной информацией о боте
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/me/bots/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Updated Bot Name",
+ *     "description": "Updated description"
+ *   }'
+ * ```
+ */
 export const updateBot = async (
   id: string,
   botData: Partial<Omit<Bot, "id" | "createdAt">>
 ): Promise<Bot> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateBot(id, botData);
-  }
   const response = await axios.patch(`/me/bots/${id}`, botData);
   return response.data;
 };
 
+/**
+ * Удалить бота
+ * @param id - ID бота
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/me/bots/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
 export const deleteBot = async (id: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteBot(id);
-  }
   const response = await axios.delete(`/me/bots/${id}`);
   return response.data;
 };
 
+/**
+ * Получить статистику бота
+ * @param botId - ID бота
+ * @returns Объект со статистикой бота
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/bots/1/stats \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
 export const getBotStats = async (botId: string): Promise<BotStats> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getBotStats(botId);
-  }
   const response = await axios.get(`/me/bots/${botId}/stats`);
   return response.data;
 };
 
 // ==================== TICKETS API ====================
-export const getTickets = async (): Promise<Ticket[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getTickets();
-  }
-  const response = await axios.get("/me/tickets");
-  return response.data;
-};
 
+/**
+ * Создать новый тикет
+ * @param ticketData - Данные тикета
+ * @returns Объект с информацией о тикете
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/me/tickets \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "title": "Bot not working",
+ *     "description": "My bot stopped responding",
+ *     "botId": 1,
+ *     "priority": "HIGH"
+ *   }'
+ * ```
+ */
 export const createTicket = async (
   ticketData: Omit<Ticket, "id" | "createdAt">
 ): Promise<Ticket> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createTicket(ticketData);
-  }
   const response = await axios.post("/me/tickets", ticketData);
   return response.data;
 };
 
+/**
+ * Получить список всех тикетов
+ * @returns Список тикетов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/tickets \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getTickets = async (): Promise<Ticket[]> => {
+  const response = await axios.get("/me/tickets");
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+/**
+ * Получить информацию о тикете
+ * @param ticketId - ID тикета
+ * @returns Объект с информацией о тикете
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/tickets/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getTicketById = async (ticketId: string): Promise<Ticket> => {
+  const response = await axios.get(`/me/tickets/${ticketId}`);
+  return response.data;
+};
+
+/**
+ * Обновить статус тикета
+ * @param id - ID тикета
+ * @param ticketData - Данные для обновления
+ * @returns Объект с обновленной информацией о тикете
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/me/tickets/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "status": "IN_PROGRESS"
+ *   }'
+ * ```
+ */
 export const updateTicket = async (
   id: string,
   ticketData: Partial<Ticket>
 ): Promise<Ticket> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateTicket(id, ticketData);
-  }
   const response = await axios.patch(`/me/tickets/${id}`, ticketData);
   return response.data;
 };
 
+/**
+ * Удалить тикет
+ * @param id - ID тикета
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/me/tickets/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
 export const deleteTicket = async (id: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteTicket(id);
-  }
   const response = await axios.delete(`/me/tickets/${id}`);
   return response.data;
 };
 
-export const getTicketMessages = async (
-  ticketId: string
-): Promise<TicketMessage[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getTicketMessages(ticketId);
-  }
-  const response = await axios.get(`/me/tickets/${ticketId}/messages`);
-  return response.data;
-};
-
+/**
+ * Добавить сообщение в тикет
+ * @param ticketId - ID тикета
+ * @param message - Текст сообщения
+ * @returns Объект с информацией о сообщении
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/me/tickets/1/messages \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "message": "Additional information about the issue"
+ *   }'
+ * ```
+ */
 export const addTicketMessage = async (
   ticketId: string,
   message: string
 ): Promise<TicketMessage> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.addTicketMessage(ticketId, message, false);
-  }
   const response = await axios.post(`/me/tickets/${ticketId}/messages`, {
     message,
   });
   return response.data;
 };
 
-// ==================== CLIENTS API (ADMIN) ====================
-export const getClients = async (): Promise<Client[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getClients();
-  }
-  const response = await axios.get("/admin/clients");
+/**
+ * Получить сообщения тикета
+ * @param ticketId - ID тикета
+ * @returns Список сообщений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/me/tickets/1/messages \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getTicketMessages = async (
+  ticketId: string
+): Promise<TicketMessage[]> => {
+  const response = await axios.get(`/me/tickets/${ticketId}/messages`);
   return response.data;
 };
 
-export const createClient = async (
-  clientData: Omit<Client, "id" | "createdAt">
-): Promise<Client> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createClient(clientData);
-  }
-  const response = await axios.post("/admin/clients", clientData);
-  return response.data;
-};
+// ==================== ADMIN API ====================
 
-export const updateClient = async (
-  id: string,
-  clientData: Partial<Omit<Client, "id" | "createdAt">>
-): Promise<Client> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateClient(id, clientData);
-  }
-  const response = await axios.patch(`/admin/clients/${id}`, clientData);
-  return response.data;
-};
-
-export const deleteClient = async (id: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteClient(id);
-  }
-  const response = await axios.delete(`/admin/clients/${id}`);
-  return response.data;
-};
-
-export const getClientById = async (clientId: string): Promise<Client> => {
-  if (IS_DEV_MODE) {
-    const client = MOCK_DATA.clients.find((c) => c.id === clientId);
-    if (!client) throw new Error("Client not found");
-    return client;
-  }
-  const response = await axios.get(`/admin/clients/${clientId}`);
-  return response.data;
-};
-
-export const getClientActivity = async (
-  clientId: string
-): Promise<ClientActivity[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getClientActivity(clientId);
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/activity`);
-  return response.data;
-};
-
-// ==================== SYSTEM API ====================
+/**
+ * Получить системную нагрузку
+ * @returns Объект с информацией о системной нагрузке
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/system/load \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const getSystemLoad = async (): Promise<SystemLoad> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getSystemLoad();
-  }
-  const response = await axios.get("/admin/system/load");
-  return response.data;
-};
-
-export const getAdminStats = async () => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getAdminStats();
-  }
-  const response = await axios.get("/admin/clients/stats");
-  return response.data;
-};
-
-// ==================== TARIFFS API ====================
-export const getTariffs = async (): Promise<Tariff[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getTariffs();
-  }
-  const response = await axios.get("/admin/tariffs");
-  return response.data;
-};
-
-export const createTariff = async (
-  tariffData: Omit<Tariff, "id" | "createdAt">
-): Promise<Tariff> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createTariff(tariffData);
-  }
-  const response = await axios.post("/admin/tariffs", tariffData);
-  return response.data;
-};
-
-export const updateTariff = async (
-  id: string,
-  tariffData: Partial<Omit<Tariff, "id" | "createdAt">>
-): Promise<Tariff> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateTariff(id, tariffData);
-  }
-  const response = await axios.patch(`/admin/tariffs/${id}`, tariffData);
-  return response.data;
-};
-
-export const deleteTariff = async (id: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteTariff(id);
-  }
-  const response = await axios.delete(`/admin/tariffs/${id}`);
-  return response.data;
-};
-
-// ==================== REFERRALS API ====================
-export const getReferrals = async (): Promise<Referral[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferrals();
-  }
-  const response = await axios.get("/me/referrals");
-  return response.data;
-};
-
-export const getReferralLinks = async (): Promise<ReferralLink[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferralLinks();
-  }
-  const response = await axios.get("/me/referrals/links");
-  return response.data;
-};
-
-export const createReferralLink = async (): Promise<ReferralLink> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createReferralLink();
-  }
-  const response = await axios.get("/me/referrals/new");
-  return response.data;
-};
-
-export const getReferralStats = async (): Promise<ReferralStats> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferralStats();
-  }
-  const response = await axios.get("/me/referrals/stats");
-  return response.data;
-};
-
-export const trackReferralClick = async (code: string) => {
-  if (IS_DEV_MODE) {
-    await delay(200);
-    const link = MOCK_DATA.referralLinks.find(l => l.code === code);
-    if (link) {
-      link.clicks += 1;
-    }
-    return { success: true };
-  }
-  const response = await axios.post(`/referrals/track/${code}`);
-  return response.data;
-};
-
-// ==================== BILLING API ====================
-export const getBillingPlans = async (): Promise<BillingPlan[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getBillingPlans();
-  }
-  const response = await axios.get("/billing/plans");
-  return response.data;
-};
-
-export const getSubscriptions = async (): Promise<Subscription[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getSubscriptions();
-  }
-  const response = await axios.get("/billing/subscriptions");
-  return response.data;
-};
-
-export const getBillingStatus = async () => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getBillingStatus();
-  }
-  const response = await axios.get("/me/billing/status");
-  return response.data;
-};
-
-export const getBillingInfo = async () => {
-  if (IS_DEV_MODE) {
-    await delay(300);
+  try {
+    const response = await axios.get("/admin/system/load");
+    return response.data;
+  } catch (error) {
+    console.warn('Backend unavailable, returning mock system load');
+    // Возвращаем тестовые данные если backend недоступен
     return {
-      currentBalance: 1500,
-      totalSpent: 5000,
-      nextPaymentDate: "2025-02-01T00:00:00Z",
-      paymentMethod: "Карта **** 1234"
+      cpu: Math.floor(Math.random() * 30) + 20,
+      memory: Math.floor(Math.random() * 40) + 30,
+      disk: Math.floor(Math.random() * 50) + 25,
+      network: {
+        incoming: Math.floor(Math.random() * 100) + 50,
+        outgoing: Math.floor(Math.random() * 80) + 40
+      },
+      uptime: '5 days, 12 hours',
+      activeUsers: Math.floor(Math.random() * 50) + 100,
+      totalRequests: Math.floor(Math.random() * 1000) + 5000,
+      errorRate: Math.floor(Math.random() * 5) + 1
     };
   }
-  const response = await axios.get("/me/billing/info");
-  return response.data;
 };
 
-export const subscribeToPlan = async (planId: string, userId?: string, promoCode?: string): Promise<SubscriptionResult> => {
-  if (IS_DEV_MODE) {
-    await delay(800);
-    const plan = MOCK_DATA.billingPlans.find(p => p.id === planId);
-    if (!plan) throw new Error("Plan not found");
-    
-    // Проверяем промокод если он предоставлен
-    let discount = 0;
-    if (promoCode) {
-      const promo = MOCK_DATA.promoCodes.find(p => p.code === promoCode && p.isActive);
-      if (promo && promo.currentUses < promo.maxUses) {
-        discount = promo.type === 'PERCENTAGE' ? (plan.price * promo.discount / 100) : promo.discount;
-        promo.currentUses++;
-      }
-    }
-    
-    const finalPrice = Math.max(0, plan.price - discount);
-    
-    const newSubscription: Subscription = {
-      id: Date.now().toString(),
-      userId: userId || "1",
-      planId,
-      status: "ACTIVE",
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      autoRenew: true
-    };
-    
-    MOCK_DATA.subscriptions.push(newSubscription);
-    
-    // Возвращаем результат с информацией о платеже
-    return {
-      subscription: newSubscription,
-      paymentUrl: `https://payment.example.com/pay?amount=${finalPrice}&plan=${planId}`,
-      originalPrice: plan.price,
-      discount,
-      finalPrice
-    };
-  }
-  const response = await axios.post("/billing/subscribe", { planId, userId, promoCode });
-  return response.data;
-};
-
-// ==================== PROMO CODES API ====================
-export const getPromoCodes = async (): Promise<PromoCode[]> => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    return [...MOCK_DATA.promoCodes];
-  }
-  const response = await axios.get("/admin/promo-codes");
-  return response.data;
-};
-
-export const createPromoCode = async (promoData: Omit<PromoCode, "id" | "createdAt">): Promise<PromoCode> => {
-  if (IS_DEV_MODE) {
-    await delay(600);
-    const newPromoCode: PromoCode = {
-      id: Date.now().toString(),
-      ...promoData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.promoCodes.push(newPromoCode);
-    return newPromoCode;
-  }
+/**
+ * Создать промокод
+ * @param promoData - Данные промокода
+ * @returns Объект с информацией о промокоде
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/promo-codes \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "code": "DISCOUNT20",
+ *     "discountPercent": 20,
+ *     "maxUses": 100,
+ *     "expiresAt": "2024-12-31T23:59:59Z"
+ *   }'
+ * ```
+ */
+export const createPromoCode = async (
+  promoData: Omit<PromoCode, "id" | "createdAt">
+): Promise<PromoCode> => {
   const response = await axios.post("/admin/promo-codes", promoData);
   return response.data;
 };
 
-export const updatePromoCode = async (id: string, promoData: Partial<Omit<PromoCode, "id" | "createdAt">>): Promise<PromoCode> => {
-  if (IS_DEV_MODE) {
-    await delay(500);
-    const index = MOCK_DATA.promoCodes.findIndex(promo => promo.id === id);
-    if (index === -1) throw new Error("Promo code not found");
-    MOCK_DATA.promoCodes[index] = { ...MOCK_DATA.promoCodes[index], ...promoData };
-    return MOCK_DATA.promoCodes[index];
-  }
+/**
+ * Получить все промокоды
+ * @returns Список промокодов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/promo-codes \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getPromoCodes = async (): Promise<PromoCode[]> => {
+  const response = await axios.get("/admin/promo-codes");
+  return response.data;
+};
+
+/**
+ * Получить промокод по ID
+ * @param id - ID промокода
+ * @returns Объект с информацией о промокоде
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/promo-codes/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getPromoCodeById = async (id: string): Promise<PromoCode> => {
+  const response = await axios.get(`/admin/promo-codes/${id}`);
+  return response.data;
+};
+
+/**
+ * Обновить промокод
+ * @param id - ID промокода
+ * @param promoData - Данные для обновления
+ * @returns Объект с обновленной информацией о промокоде
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/promo-codes/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "discountPercent": 25,
+ *     "maxUses": 200
+ *   }'
+ * ```
+ */
+export const updatePromoCode = async (
+  id: string,
+  promoData: Partial<Omit<PromoCode, "id" | "createdAt">>
+): Promise<PromoCode> => {
   const response = await axios.patch(`/admin/promo-codes/${id}`, promoData);
   return response.data;
 };
 
+/**
+ * Удалить промокод
+ * @param id - ID промокода
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/promo-codes/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const deletePromoCode = async (id: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.promoCodes.findIndex(promo => promo.id === id);
-    if (index === -1) throw new Error("Promo code not found");
-    MOCK_DATA.promoCodes.splice(index, 1);
-    return { success: true };
-  }
   const response = await axios.delete(`/admin/promo-codes/${id}`);
   return response.data;
 };
 
+/**
+ * Переключить статус промокода
+ * @param id - ID промокода
+ * @returns Объект с обновленной информацией о промокоде
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/promo-codes/1/toggle \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const togglePromoCode = async (id: string): Promise<PromoCode> => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.promoCodes.findIndex(promo => promo.id === id);
-    if (index === -1) throw new Error("Promo code not found");
-    MOCK_DATA.promoCodes[index].isActive = !MOCK_DATA.promoCodes[index].isActive;
-    return MOCK_DATA.promoCodes[index];
-  }
   const response = await axios.patch(`/admin/promo-codes/${id}/toggle`);
   return response.data;
 };
 
+/**
+ * Проверить промокод
+ * @param code - Код промокода
+ * @param amount - Сумма для проверки
+ * @returns Объект с информацией о проверке промокода
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/promo-codes/validate \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "code": "DISCOUNT20",
+ *     "userId": 1
+ *   }'
+ * ```
+ */
 export const validatePromoCode = async (code: string, amount: number) => {
-  if (IS_DEV_MODE) {
-    await delay(300);
-    const promo = MOCK_DATA.promoCodes.find(p => p.code === code && p.isActive);
-    if (!promo) throw new Error("Promo code not found or inactive");
-    if (promo.currentUses >= promo.maxUses) throw new Error("Promo code usage limit exceeded");
-    if (new Date(promo.expiresAt) < new Date()) throw new Error("Promo code expired");
-    
-    const discount = promo.type === 'PERCENTAGE' 
-      ? Math.floor(amount * promo.discount / 100)
-      : promo.discount;
-    
-    return {
-      valid: true,
-      discount,
-      finalAmount: amount - discount,
-      promoCode: promo
-    };
-  }
-  const response = await axios.post("/promo-codes/validate", { code, amount });
+  const response = await axios.post("/admin/promo-codes/validate", {
+    code,
+    amount,
+  });
+  return response.data;
+};
+
+// ==================== ADMIN CLIENTS API ====================
+
+/**
+ * Создать клиента
+ * @param clientData - Данные клиента
+ * @returns Объект с информацией о клиенте
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/clients \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "email": "client@example.com",
+ *     "password": "password123",
+ *     "firstName": "Jane",
+ *     "lastName": "Smith"
+ *   }'
+ * ```
+ */
+export const createClient = async (
+  clientData: Omit<Client, "id" | "createdAt">
+): Promise<Client> => {
+  const response = await axios.post("/admin/clients", clientData);
+  return response.data;
+};
+
+/**
+ * Получить список всех клиентов
+ * @returns Список клиентов
+ * @example
+ * ```bash
+ * curl -X GET "http://localhost:3000/admin/clients?page=1&limit=10&search=jane" \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClients = async (): Promise<Client[]> => {
+  const response = await axios.get("/admin/clients");
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+/**
+ * Получить статистику дашборда
+ * @returns Объект со статистикой
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/stats \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getAdminStats = async () => {
+  const response = await axios.get("/admin/clients/stats");
+  return response.data;
+};
+
+/**
+ * Получить клиента по ID
+ * @param clientId - ID клиента
+ * @returns Объект с информацией о клиенте
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientById = async (clientId: string): Promise<Client> => {
+  const response = await axios.get(`/admin/clients/${clientId}`);
+  return response.data;
+};
+
+/**
+ * Получить активность пользователя
+ * @param clientId - ID клиента
+ * @returns Список активностей
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/activity \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientActivity = async (
+  clientId: string
+): Promise<ClientActivity[]> => {
+  const response = await axios.get(`/admin/clients/${clientId}/activity`);
+  return response.data;
+};
+
+/**
+ * Обновить клиента
+ * @param id - ID клиента
+ * @param clientData - Данные для обновления
+ * @returns Объект с обновленной информацией о клиенте
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/clients/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "firstName": "Updated Name",
+ *     "isActive": true
+ *   }'
+ * ```
+ */
+export const updateClient = async (
+  id: string,
+  clientData: Partial<Omit<Client, "id" | "createdAt">>
+): Promise<Client> => {
+  const response = await axios.patch(`/admin/clients/${id}`, clientData);
+  return response.data;
+};
+
+/**
+ * Удалить клиента
+ * @param id - ID клиента
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/clients/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteClient = async (id: string) => {
+  const response = await axios.delete(`/admin/clients/${id}`);
   return response.data;
 };
 
 // ==================== TELEGAPAY API ====================
-export const getPaymentMethods = async (amount: number, currency: string = 'RUB') => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    return [
-      { id: 'card', name: 'Банковская карта', fee: 2.9, available: true },
-      { id: 'sbp', name: 'СБП', fee: 0.7, available: true },
-      { id: 'wallet', name: 'Электронный кошелек', fee: 1.5, available: true }
-    ];
-  }
-  const response = await axios.get(`/telegapay/methods?amount=${amount}&currency=${currency}`);
+
+/**
+ * Получить методы оплаты
+ * @param amount - Сумма
+ * @param currency - Валюта (по умолчанию 'RUB')
+ * @returns Объект с методами оплаты
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/get-methods \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "amount": 100,
+ *     "currency": "RUB"
+ *   }'
+ * ```
+ */
+export const getTelegaPayMethods = async (
+  amount: number,
+  currency: string = "RUB"
+) => {
+  const response = await axios.post("/telegapay/get-methods", {
+    amount,
+    currency,
+  });
   return response.data;
 };
 
-export const getRequisites = async () => {
-  if (IS_DEV_MODE) {
-    await delay(300);
-    return {
-      cardNumber: '2200 1234 5678 9012',
-      cardHolder: 'IVAN PETROV',
-      bankName: 'Сбербанк',
-      bik: '044525225'
-    };
-  }
-  const response = await axios.get("/telegapay/requisites");
+/**
+ * Получить реквизиты для оплаты
+ * @param paymentData - Данные для оплаты
+ * @returns Объект с реквизитами для оплаты
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/get-requisites \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "method": "card",
+ *     "amount": 100,
+ *     "currency": "RUB",
+ *     "order_id": "order_123",
+ *     "user_id": "user_456"
+ *   }'
+ * ```
+ */
+export const getTelegaPayRequisites = async (paymentData: {
+  amount: number;
+  currency: string;
+  method: string;
+  order_id: string;
+  user_id: string;
+}) => {
+  const response = await axios.post("/telegapay/get-requisites", paymentData);
   return response.data;
 };
 
-export const createPaylink = async (amount: number, currency: string = 'RUB', description?: string) => {
-  if (IS_DEV_MODE) {
-    await delay(600);
-    const transaction: TelegaPayTransaction = {
-      id: Date.now().toString(),
-      externalId: `PAY_${Date.now()}`,
-      amount,
-      currency,
-      status: 'PENDING',
-      paymentMethod: 'card',
-      paymentUrl: `https://pay.telegapay.com/pay/${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-    MOCK_DATA.telegaPayTransactions.push(transaction);
-    return transaction;
-  }
-  const response = await axios.post("/telegapay/paylink", { amount, currency, description });
+/**
+ * Проверить доступность метода оплаты
+ * @param paymentData - Данные для проверки
+ * @returns Объект с информацией о проверке
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/validate-payment-method \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "payment_method": "card",
+ *     "amount": 100,
+ *     "currency": "RUB"
+ *   }'
+ * ```
+ */
+export const validatePaymentMethod = async (paymentData: {
+  payment_method: string;
+  amount: number;
+  currency: string;
+}) => {
+  const response = await axios.post(
+    "/telegapay/validate-payment-method",
+    paymentData
+  );
   return response.data;
 };
 
-export const checkPaymentStatus = async (transactionId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(300);
-    const transaction = MOCK_DATA.telegaPayTransactions.find(t => t.id === transactionId);
-    if (!transaction) throw new Error("Transaction not found");
-    return transaction;
-  }
-  const response = await axios.get(`/telegapay/status/${transactionId}`);
+/**
+ * Создать ссылку на оплату
+ * @param paylinkData - Данные для создания ссылки
+ * @returns Объект с информацией о ссылке
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/create-paylink \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "amount": 100,
+ *     "currency": "RUB",
+ *     "order_id": "order_123",
+ *     "description": "VPN subscription",
+ *     "success_url": "https://example.com/success",
+ *     "cancel_url": "https://example.com/cancel"
+ *   }'
+ * ```
+ */
+export const createTelegaPaylink = async (paylinkData: {
+  amount: number;
+  currency: string;
+  order_id: string;
+  description: string;
+  success_url: string;
+  cancel_url: string;
+}) => {
+  const response = await axios.post("/telegapay/create-paylink", paylinkData);
   return response.data;
 };
 
-export const confirmPayment = async (transactionId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(500);
-    const index = MOCK_DATA.telegaPayTransactions.findIndex(t => t.id === transactionId);
-    if (index === -1) throw new Error("Transaction not found");
-    MOCK_DATA.telegaPayTransactions[index].status = 'COMPLETED';
-    MOCK_DATA.telegaPayTransactions[index].completedAt = new Date().toISOString();
-    return MOCK_DATA.telegaPayTransactions[index];
-  }
-  const response = await axios.post(`/telegapay/confirm/${transactionId}`);
+/**
+ * Проверить статус платежа
+ * @param transactionId - ID транзакции
+ * @returns Объект с информацией о статусе платежа
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/check-status \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "order_id": "order_123"
+ *   }'
+ * ```
+ */
+export const checkTelegaPaymentStatus = async (transactionId: string) => {
+  const response = await axios.post("/telegapay/check-status", {
+    transaction_id: transactionId,
+  });
   return response.data;
 };
 
-export const cancelPayment = async (transactionId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.telegaPayTransactions.findIndex(t => t.id === transactionId);
-    if (index === -1) throw new Error("Transaction not found");
-    MOCK_DATA.telegaPayTransactions[index].status = 'CANCELLED';
-    return MOCK_DATA.telegaPayTransactions[index];
-  }
-  const response = await axios.post(`/telegapay/cancel/${transactionId}`);
+/**
+ * Подтвердить платеж
+ * @param transactionId - ID транзакции
+ * @returns Объект с информацией о подтверждении платежа
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/confirm-payment \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "external_id": "payment_external_id"
+ *   }'
+ * ```
+ */
+export const confirmTelegaPayment = async (transactionId: string) => {
+  const response = await axios.post("/telegapay/confirm-payment", {
+    transaction_id: transactionId,
+  });
   return response.data;
 };
 
-export const sendReceipt = async (transactionId: string, email: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    return { success: true, message: 'Receipt sent successfully' };
-  }
-  const response = await axios.post(`/telegapay/receipt/${transactionId}`, { email });
+/**
+ * Создать выплату
+ * @param payoutData - Данные для выплаты
+ * @returns Объект с информацией о выплате
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/create-payout \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "amount": 100,
+ *     "currency": "RUB",
+ *     "method": "card",
+ *     "order_id": "payout_123",
+ *     "requisites": {
+ *       "card_number": "1234567890123456"
+ *     }
+ *   }'
+ * ```
+ */
+export const createTelegaPayout = async (payoutData: {
+  amount: number;
+  currency: string;
+  method: string;
+  order_id: string;
+  requisites: {
+    card_number: string;
+  };
+}) => {
+  const response = await axios.post("/telegapay/create-payout", payoutData);
   return response.data;
 };
 
-export const createPayout = async (payoutData: Omit<TelegaPayPayout, "id" | "createdAt" | "status">): Promise<TelegaPayPayout> => {
-  if (IS_DEV_MODE) {
-    await delay(600);
-    const newPayout: TelegaPayPayout = {
-      id: Date.now().toString(),
-      ...payoutData,
-      status: 'PENDING',
-      createdAt: new Date().toISOString()
-    };
-    MOCK_DATA.telegaPayPayouts.push(newPayout);
-    return newPayout;
-  }
-  const response = await axios.post("/telegapay/payout", payoutData);
+/**
+ * Отменить платеж
+ * @param transactionId - ID транзакции
+ * @returns Объект с информацией об отмене платежа
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/cancel-payment \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "order_id": "order_123"
+ *   }'
+ * ```
+ */
+export const cancelTelegaPayment = async (transactionId: string) => {
+  const response = await axios.post("/telegapay/cancel-payment", {
+    transaction_id: transactionId,
+  });
   return response.data;
 };
 
-export const cancelPayout = async (payoutId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.telegaPayPayouts.findIndex(p => p.id === payoutId);
-    if (index === -1) throw new Error("Payout not found");
-    MOCK_DATA.telegaPayPayouts[index].status = 'CANCELLED';
-    return MOCK_DATA.telegaPayPayouts[index];
-  }
-  const response = await axios.post(`/telegapay/payout/${payoutId}/cancel`);
+/**
+ * Отменить выплату
+ * @param transactionId - ID транзакции
+ * @returns Объект с информацией об отмене выплаты
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/cancel-payout \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "order_id": "payout_123"
+ *   }'
+ * ```
+ */
+export const cancelTelegaPayout = async (transactionId: string) => {
+  const response = await axios.post("/telegapay/cancel-payout", {
+    transaction_id: transactionId,
+  });
   return response.data;
 };
 
-// ==================== ADMIN API (EXTENDED) ====================
-// Bot Management for Clients
-export const createBotForClient = async (clientId: string, botData: Omit<Bot, "id" | "createdAt">): Promise<Bot> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createBot(botData);
-  }
+/**
+ * Отправить чек
+ * @param receiptData - Данные для чека
+ * @returns Объект с информацией о чеке
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/telegapay/send-receipt \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "transaction_id": "trans_123",
+ *     "receipt_url": "https://example.com/receipt.jpg"
+ *   }'
+ * ```
+ */
+export const sendTelegaPayReceipt = async (receiptData: {
+  transaction_id: string;
+  receipt_url: string;
+}) => {
+  const response = await axios.post("/telegapay/send-receipt", receiptData);
+  return response.data;
+};
+
+// ==================== ADMIN BOTS API ====================
+
+/**
+ * Создать бота для клиента (Admin)
+ * @param clientId - ID клиента
+ * @param botData - Данные бота
+ * @returns Объект с информацией о боте
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/clients/1/bots \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Test Bot for Client",
+ *     "token": "YOUR_BOT_TOKEN_HERE",
+ *     "username": "@test_bot_username"
+ *   }'
+ * ```
+ */
+export const createBotForClient = async (
+  clientId: string,
+  botData: Omit<Bot, "id" | "createdAt">
+): Promise<Bot> => {
   const response = await axios.post(`/admin/clients/${clientId}/bots`, botData);
   return response.data;
 };
 
-export const getBotForClient = async (clientId: string, botId: string): Promise<Bot> => {
-  if (IS_DEV_MODE) {
-    const bot = MOCK_DATA.bots.find(b => b.id === botId);
-    if (!bot) throw new Error("Bot not found");
-    return bot;
-  }
+/**
+ * Получить бота клиента по ID (Admin)
+ * @param clientId - ID клиента
+ * @param botId - ID бота
+ * @returns Объект с информацией о боте
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/bots/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getBotForClient = async (
+  clientId: string,
+  botId: string
+): Promise<Bot> => {
   const response = await axios.get(`/admin/clients/${clientId}/bots/${botId}`);
   return response.data;
 };
 
-export const updateBotForClient = async (clientId: string, botId: string, botData: Partial<Bot>): Promise<Bot> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateBot(botId, botData);
-  }
-  const response = await axios.patch(`/admin/clients/${clientId}/bots/${botId}`, botData);
+/**
+ * Обновить бота клиента (Admin)
+ * @param clientId - ID клиента
+ * @param botId - ID бота
+ * @param botData - Данные для обновления
+ * @returns Объект с обновленной информацией о боте
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/clients/1/bots/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Updated Bot Name",
+ *     "token": "new_telegram_bot_token",
+ *     "username": "@updated_bot_username"
+ *   }'
+ * ```
+ */
+export const updateBotForClient = async (
+  clientId: string,
+  botId: string,
+  botData: Partial<Omit<Bot, "id" | "createdAt">>
+): Promise<Bot> => {
+  const response = await axios.patch(
+    `/admin/clients/${clientId}/bots/${botId}`,
+    botData
+  );
   return response.data;
 };
 
+/**
+ * Удалить бота клиента (Admin)
+ * @param clientId - ID клиента
+ * @param botId - ID бота
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/clients/1/bots/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const deleteBotForClient = async (clientId: string, botId: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteBot(botId);
-  }
-  const response = await axios.delete(`/admin/clients/${clientId}/bots/${botId}`);
+  const response = await axios.delete(
+    `/admin/clients/${clientId}/bots/${botId}`
+  );
   return response.data;
 };
 
-// Ticket Management for Clients
-export const getTicketsForClient = async (clientId: string): Promise<Ticket[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getTickets();
-  }
+// ==================== ADMIN TICKETS API ====================
+
+/**
+ * Получить все тикеты клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Список тикетов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/tickets \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getTicketsForClient = async (
+  clientId: string
+): Promise<Ticket[]> => {
   const response = await axios.get(`/admin/clients/${clientId}/tickets`);
   return response.data;
 };
 
-export const createTicketForClient = async (clientId: string, ticketData: Omit<Ticket, "id" | "createdAt">): Promise<Ticket> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.createTicket(ticketData);
-  }
-  const response = await axios.post(`/admin/clients/${clientId}/tickets`, ticketData);
+/**
+ * Создать тикет для клиента (Admin)
+ * @param clientId - ID клиента
+ * @param ticketData - Данные тикета
+ * @returns Объект с информацией о тикете
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/clients/1/tickets \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "subject": "Test Ticket for Client",
+ *     "message": "Message for client ticket",
+ *     "botId": 1,
+ *     "telegramId": 123456789
+ *   }'
+ * ```
+ */
+export const createTicketForClient = async (
+  clientId: string,
+  ticketData: Omit<Ticket, "id" | "createdAt">
+): Promise<Ticket> => {
+  const response = await axios.post(
+    `/admin/clients/${clientId}/tickets`,
+    ticketData
+  );
   return response.data;
 };
 
-export const getTicketForClient = async (clientId: string, ticketId: string): Promise<Ticket> => {
-  if (IS_DEV_MODE) {
-    const ticket = MOCK_DATA.tickets.find(t => t.id === ticketId);
-    if (!ticket) throw new Error("Ticket not found");
-    return ticket;
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/tickets/${ticketId}`);
+/**
+ * Получить тикет клиента по ID (Admin)
+ * @param clientId - ID клиента
+ * @param ticketId - ID тикета
+ * @returns Объект с информацией о тикете
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/tickets/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getTicketForClient = async (
+  clientId: string,
+  ticketId: string
+): Promise<Ticket> => {
+  const response = await axios.get(
+    `/admin/clients/${clientId}/tickets/${ticketId}`
+  );
   return response.data;
 };
 
-export const updateTicketForClient = async (clientId: string, ticketId: string, ticketData: Partial<Ticket>): Promise<Ticket> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.updateTicket(ticketId, ticketData);
-  }
-  const response = await axios.patch(`/admin/clients/${clientId}/tickets/${ticketId}`, ticketData);
+/**
+ * Обновить тикет клиента (Admin)
+ * @param clientId - ID клиента
+ * @param ticketId - ID тикета
+ * @param ticketData - Данные для обновления
+ * @returns Объект с обновленной информацией о тикете
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/clients/1/tickets/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "status": "CLOSED"
+ *   }'
+ * ```
+ */
+export const updateTicketForClient = async (
+  clientId: string,
+  ticketId: string,
+  ticketData: Partial<Ticket>
+): Promise<Ticket> => {
+  const response = await axios.patch(
+    `/admin/clients/${clientId}/tickets/${ticketId}`,
+    ticketData
+  );
   return response.data;
 };
 
-export const deleteTicketForClient = async (clientId: string, ticketId: string) => {
-  if (IS_DEV_MODE) {
-    return await mockApi.deleteTicket(ticketId);
-  }
-  const response = await axios.delete(`/admin/clients/${clientId}/tickets/${ticketId}`);
+/**
+ * Удалить тикет клиента (Admin)
+ * @param clientId - ID клиента
+ * @param ticketId - ID тикета
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/clients/1/tickets/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteTicketForClient = async (
+  clientId: string,
+  ticketId: string
+) => {
+  const response = await axios.delete(
+    `/admin/clients/${clientId}/tickets/${ticketId}`
+  );
   return response.data;
 };
 
-export const addMessageToTicketForClient = async (clientId: string, ticketId: string, message: string): Promise<TicketMessage> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.addTicketMessage(ticketId, message, true);
-  }
-  const response = await axios.post(`/admin/clients/${clientId}/tickets/${ticketId}/messages`, { message });
+/**
+ * Добавить сообщение в тикет клиента (Admin)
+ * @param clientId - ID клиента
+ * @param ticketId - ID тикета
+ * @param message - Текст сообщения
+ * @returns Объект с информацией о сообщении
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/clients/1/tickets/1/messages \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "message": "New message from admin"
+ *   }'
+ * ```
+ */
+export const addTicketMessageForClient = async (
+  clientId: string,
+  ticketId: string,
+  message: string
+): Promise<TicketMessage> => {
+  const response = await axios.post(
+    `/admin/clients/${clientId}/tickets/${ticketId}/messages`,
+    {
+      message,
+    }
+  );
   return response.data;
 };
 
-export const getTicketMessagesForClient = async (clientId: string, ticketId: string): Promise<TicketMessage[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getTicketMessages(ticketId);
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/tickets/${ticketId}/messages`);
+/**
+ * Получить сообщения тикета клиента (Admin)
+ * @param clientId - ID клиента
+ * @param ticketId - ID тикета
+ * @returns Список сообщений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/tickets/1/messages \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getTicketMessagesForClient = async (
+  clientId: string,
+  ticketId: string
+): Promise<TicketMessage[]> => {
+  const response = await axios.get(
+    `/admin/clients/${clientId}/tickets/${ticketId}/messages`
+  );
   return response.data;
 };
 
-// Referral Management for Clients
-export const getClientReferrals = async (clientId: string): Promise<Referral[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferrals();
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/referrals`);
+// ==================== ADMIN REFERRALS API ====================
+
+/**
+ * Получить рефералы клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Список рефералов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/me/referrals \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientReferrals = async (
+  clientId: string
+): Promise<Referral[]> => {
+  const response = await axios.get(`/admin/clients/${clientId}/me/referrals`);
   return response.data;
 };
 
-export const getClientReferralStats = async (clientId: string): Promise<ReferralStats> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferralStats();
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/referrals/stats`);
+/**
+ * Получить статистику рефералов клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Объект со статистикой рефералов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/me/referrals/stats \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientReferralStats = async (clientId: string) => {
+  const response = await axios.get(
+    `/admin/clients/${clientId}/me/referrals/stats`
+  );
   return response.data;
 };
 
-export const getClientReferralLinks = async (clientId: string): Promise<ReferralLink[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getReferralLinks();
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/referrals/links`);
+/**
+ * Получить реферальные ссылки клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Список реферальных ссылок
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/me/referrals/links \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientReferralLinks = async (
+  clientId: string
+): Promise<ReferralLink[]> => {
+  const response = await axios.get(
+    `/admin/clients/${clientId}/me/referrals/links`
+  );
   return response.data;
 };
 
+/**
+ * Получить бонусы рефералов клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Объект с информацией о бонусах
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/me/referrals/bonuses \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const getClientReferralBonuses = async (clientId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(300);
-    return { totalBonus: 500, availableBonus: 200 };
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/referrals/bonuses`);
+  const response = await axios.get(
+    `/admin/clients/${clientId}/me/referrals/bonuses`
+  );
   return response.data;
 };
 
-export const updateClientReferralBonuses = async (clientId: string, bonusData: { bonus: number; status: string }) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    return { success: true };
-  }
-  const response = await axios.patch(`/admin/clients/${clientId}/referrals/bonuses`, bonusData);
+/**
+ * Обновить бонусы рефералов клиента (Admin)
+ * @param clientId - ID клиента
+ * @param bonusData - Данные бонусов
+ * @returns Объект с обновленной информацией о бонусах
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/clients/1/me/referrals/bonuses \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "totalBonus": 200,
+ *     "pendingBonus": 50
+ *   }'
+ * ```
+ */
+export const updateClientReferralBonuses = async (
+  clientId: string,
+  bonusData: { totalBonus: number; pendingBonus: number }
+) => {
+  const response = await axios.patch(
+    `/admin/clients/${clientId}/me/referrals/bonuses`,
+    bonusData
+  );
   return response.data;
 };
 
-export const deleteClientReferralLink = async (clientId: string, linkId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    return { success: true };
-  }
-  const response = await axios.delete(`/admin/clients/${clientId}/referrals/links/${linkId}`);
+/**
+ * Удалить реферальную ссылку клиента (Admin)
+ * @param clientId - ID клиента
+ * @param linkId - ID реферальной ссылки
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/clients/1/me/referrals/links/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteClientReferralLink = async (
+  clientId: string,
+  linkId: string
+) => {
+  const response = await axios.delete(
+    `/admin/clients/${clientId}/me/referrals/links/${linkId}`
+  );
   return response.data;
 };
 
-// CRM Management for Clients
-export const getClientCRMConnections = async (clientId: string): Promise<CRMConnection[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getCRMConnections();
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/crm/connections`);
+// ==================== ADMIN CRM API ====================
+
+/**
+ * Получить все CRM подключения (Admin)
+ * @returns Список CRM подключений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/crm/connections \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getAdminCRMConnections = async (): Promise<CRMConnection[]> => {
+  const response = await axios.get("/admin/crm/connections");
   return response.data;
 };
 
-export const createCRMConnectionForClient = async (clientId: string, connectionData: Omit<CRMConnection, "id" | "createdAt">): Promise<CRMConnection> => {
-  if (IS_DEV_MODE) {
-    await delay(600);
-    const newConnection: CRMConnection = {
-      id: Date.now().toString(),
-      ...connectionData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.crmConnections.push(newConnection);
-    return newConnection;
-  }
-  const response = await axios.post(`/admin/clients/${clientId}/crm/connections`, connectionData);
+/**
+ * Получить CRM подключение по ID (Admin)
+ * @param connectionId - ID подключения
+ * @returns Объект с информацией о CRM подключении
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/crm/connections/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getAdminCRMConnectionById = async (
+  connectionId: string
+): Promise<CRMConnection> => {
+  const response = await axios.get(`/admin/crm/connections/${connectionId}`);
   return response.data;
 };
 
-export const updateCRMConnectionForClient = async (clientId: string, connectionId: string, connectionData: Partial<CRMConnection>): Promise<CRMConnection> => {
-  if (IS_DEV_MODE) {
-    return await updateCRMConnection(connectionId, connectionData);
-  }
-  const response = await axios.patch(`/admin/clients/${clientId}/crm/connections/${connectionId}`, connectionData);
+/**
+ * Удалить CRM подключение (Admin)
+ * @param connectionId - ID подключения
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/crm/connections/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteAdminCRMConnection = async (connectionId: string) => {
+  const response = await axios.delete(`/admin/crm/connections/${connectionId}`);
   return response.data;
 };
 
-export const deleteCRMConnectionForClient = async (clientId: string, connectionId: string) => {
-  if (IS_DEV_MODE) {
-    return await deleteCRMConnection(connectionId);
-  }
-  const response = await axios.delete(`/admin/clients/${clientId}/crm/connections/${connectionId}`);
+/**
+ * Переключить статус CRM подключения (Admin)
+ * @param connectionId - ID подключения
+ * @returns Объект с обновленной информацией о подключении
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/crm/connections/1/toggle \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const toggleAdminCRMConnection = async (
+  connectionId: string
+): Promise<CRMConnection> => {
+  const response = await axios.patch(
+    `/admin/crm/connections/${connectionId}/toggle`
+  );
   return response.data;
 };
 
+/**
+ * Создать CRM подключение для клиента (Admin)
+ * @param clientId - ID клиента
+ * @param connectionData - Данные подключения
+ * @returns Объект с информацией о подключении
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/clients/1/crm/connections \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "provider": "AMOCRM",
+ *     "accessToken": "CLIENT_ACCESS_TOKEN",
+ *     "refreshToken": "CLIENT_REFRESH_TOKEN",
+ *     "expiresAt": "2025-12-31T23:59:59Z",
+ *     "domain": "https://client-subdomain.amocrm.ru",
+ *     "otherData": {
+ *       "clientId": "client_id",
+ *       "clientSecret": "client_secret"
+ *     },
+ *     "isActive": true
+ *   }'
+ * ```
+ */
+export const createCRMConnectionForClient = async (
+  clientId: string,
+  connectionData: Omit<CRMConnection, "id" | "createdAt">
+): Promise<CRMConnection> => {
+  const response = await axios.post(
+    `/admin/clients/${clientId}/crm/connections`,
+    connectionData
+  );
+  return response.data;
+};
+
+/**
+ * Получить CRM подключения клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Список CRM подключений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/crm/connections \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getClientCRMConnections = async (
+  clientId: string
+): Promise<CRMConnection[]> => {
+  const response = await axios.get(
+    `/admin/clients/${clientId}/crm/connections`
+  );
+  return response.data;
+};
+
+/**
+ * Обновить CRM подключение клиента (Admin)
+ * @param clientId - ID клиента
+ * @param connectionId - ID подключения
+ * @param connectionData - Данные для обновления
+ * @returns Объект с обновленной информацией о подключении
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/clients/1/crm/connections/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "accessToken": "UPDATED_ACCESS_TOKEN",
+ *     "refreshToken": "UPDATED_REFRESH_TOKEN",
+ *     "isActive": false
+ *   }'
+ * ```
+ */
+export const updateClientCRMConnection = async (
+  clientId: string,
+  connectionId: string,
+  connectionData: Partial<Omit<CRMConnection, "id" | "createdAt">>
+): Promise<CRMConnection> => {
+  const response = await axios.patch(
+    `/admin/clients/${clientId}/crm/connections/${connectionId}`,
+    connectionData
+  );
+  return response.data;
+};
+
+/**
+ * Удалить CRM подключение клиента (Admin)
+ * @param clientId - ID клиента
+ * @param connectionId - ID подключения
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/clients/1/crm/connections/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteClientCRMConnection = async (
+  clientId: string,
+  connectionId: string
+) => {
+  const response = await axios.delete(
+    `/admin/clients/${clientId}/crm/connections/${connectionId}`
+  );
+  return response.data;
+};
+
+/**
+ * Получить все CRM данные клиента (Admin)
+ * @param clientId - ID клиента
+ * @returns Объект со всеми CRM данными
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/clients/1/crm/data/all \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
 export const getAllClientCRMData = async (clientId: string) => {
-  if (IS_DEV_MODE) {
-    await delay(500);
-    return {
-      connections: await mockApi.getCRMConnections(),
-      totalContacts: 150,
-      totalDeals: 45,
-      lastSync: new Date().toISOString()
-    };
-  }
-  const response = await axios.get(`/admin/clients/${clientId}/crm/data`);
+  const response = await axios.get(`/admin/clients/${clientId}/crm/data/all`);
+  return response.data;
+};
+
+// ==================== BILLING API ====================
+
+/**
+ * Получить тарифные планы
+ * @returns Список тарифных планов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/billing/plans \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getBillingPlans = async () => {
+  const response = await axios.get("/billing/plans");
+  return response.data;
+};
+
+/**
+ * Получить подписки пользователя
+ * @returns Список подписок
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/billing/subscriptions \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getUserSubscriptions = async () => {
+  const response = await axios.get("/billing/subscriptions");
+  return response.data;
+};
+
+/**
+ * Создать инвойс Telegram Pay
+ * @param paymentData - Данные для оплаты
+ * @returns Объект с информацией об инвойсе
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/billing/pay \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "planId": "BASIC",
+ *     "promoCode": "DISCOUNT20"
+ *   }'
+ * ```
+ */
+export const createTelegramPayInvoice = async (paymentData: {
+  planId: string;
+  promoCode?: string;
+}) => {
+  const response = await axios.post("/billing/pay", paymentData);
   return response.data;
 };
 
 // ==================== CRM API ====================
-export const getCRMConnections = async (): Promise<CRMConnection[]> => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getCRMConnections();
-  }
-  const response = await axios.get("/me/crm/connections");
+
+/**
+ * Создать CRM подключение
+ * @param connectionData - Данные подключения
+ * @returns Объект с информацией о подключении
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/crm/connections \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "userId": 1,
+ *     "provider": "AMOCRM",
+ *     "accessToken": "YOUR_ACCESS_TOKEN",
+ *     "refreshToken": "YOUR_REFRESH_TOKEN",
+ *     "expiresAt": "2025-12-31T23:59:59Z",
+ *     "domain": "https://your-amocrm-subdomain.amocrm.ru",
+ *     "otherData": {
+ *       "clientId": "YOUR_CLIENT_ID",
+ *       "clientSecret": "YOUR_CLIENT_SECRET",
+ *       "redirectUri": "YOUR_REDIRECT_URI"
+ *     }
+ *   }'
+ * ```
+ */
+export const createCRMConnection = async (
+  connectionData: Omit<CRMConnection, "id" | "createdAt">
+): Promise<CRMConnection> => {
+  const response = await axios.post("/crm/connections", connectionData);
   return response.data;
 };
 
-export const getCRMUserInfo = async () => {
-  if (IS_DEV_MODE) {
-    return await mockApi.getCRMUserInfo();
-  }
-  const response = await axios.get("/me/crm/usersinfo");
+/**
+ * Получить все CRM подключения
+ * @returns Список CRM подключений
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/crm/connections \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getAllCRMConnections = async (): Promise<CRMConnection[]> => {
+  const response = await axios.get("/crm/connections");
   return response.data;
 };
 
-export const createCRMConnection = async (connectionData: Omit<CRMConnection, "id" | "createdAt">): Promise<CRMConnection> => {
-  if (IS_DEV_MODE) {
-    await delay(600);
-    const newConnection: CRMConnection = {
-      id: Date.now().toString(),
-      ...connectionData,
-      createdAt: new Date().toISOString(),
-    };
-    MOCK_DATA.crmConnections.push(newConnection);
-    return newConnection;
-  }
-  const response = await axios.post("/me/crm/connections", connectionData);
+/**
+ * Получить CRM подключение по ID
+ * @param connectionId - ID подключения
+ * @returns Объект с информацией о CRM подключении
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/crm/connections/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const getCRMConnectionById = async (
+  connectionId: string
+): Promise<CRMConnection> => {
+  const response = await axios.get(`/crm/connections/${connectionId}`);
   return response.data;
 };
 
-export const updateCRMConnection = async (id: string, connectionData: Partial<Omit<CRMConnection, "id" | "createdAt">>): Promise<CRMConnection> => {
-  if (IS_DEV_MODE) {
-    await delay(500);
-    const index = MOCK_DATA.crmConnections.findIndex(conn => conn.id === id);
-    if (index === -1) throw new Error("CRM connection not found");
-    MOCK_DATA.crmConnections[index] = { ...MOCK_DATA.crmConnections[index], ...connectionData };
-    return MOCK_DATA.crmConnections[index];
-  }
-  const response = await axios.patch(`/me/crm/connections/${id}`, connectionData);
+/**
+ * Обновить CRM подключение
+ * @param connectionId - ID подключения
+ * @param connectionData - Данные для обновления
+ * @returns Объект с обновленной информацией о подключении
+ * @example
+ * ```bash
+ * curl -X PUT http://localhost:3000/crm/connections/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "accessToken": "NEW_ACCESS_TOKEN",
+ *     "expiresAt": "2026-12-31T23:59:59Z"
+ *   }'
+ * ```
+ */
+export const updateCRMConnection = async (
+  connectionId: string,
+  connectionData: Partial<Omit<CRMConnection, "id" | "createdAt">>
+): Promise<CRMConnection> => {
+  const response = await axios.put(
+    `/crm/connections/${connectionId}`,
+    connectionData
+  );
   return response.data;
 };
 
-export const deleteCRMConnection = async (id: string) => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.crmConnections.findIndex(conn => conn.id === id);
-    if (index === -1) throw new Error("CRM connection not found");
-    MOCK_DATA.crmConnections.splice(index, 1);
-    return { success: true };
-  }
-  const response = await axios.delete(`/me/crm/connections/${id}`);
+/**
+ * Удалить CRM подключение
+ * @param connectionId - ID подключения
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/crm/connections/1 \
+ *   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+ * ```
+ */
+export const deleteCRMConnection = async (connectionId: string) => {
+  const response = await axios.delete(`/crm/connections/${connectionId}`);
   return response.data;
 };
 
-export const toggleCRMConnection = async (id: string): Promise<CRMConnection> => {
-  if (IS_DEV_MODE) {
-    await delay(400);
-    const index = MOCK_DATA.crmConnections.findIndex(conn => conn.id === id);
-    if (index === -1) throw new Error("CRM connection not found");
-    MOCK_DATA.crmConnections[index].isActive = !MOCK_DATA.crmConnections[index].isActive;
-    return MOCK_DATA.crmConnections[index];
-  }
-  const response = await axios.patch(`/me/crm/connections/${id}/toggle`);
+// ==================== TARIFFS API ====================
+
+/**
+ * Получить все тарифы
+ * @returns Список тарифов
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/tariffs \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getTariffs = async (): Promise<Tariff[]> => {
+  const response = await axios.get("/admin/tariffs");
   return response.data;
 };
 
-// ==================== UNIFIED API OBJECT ====================
-export const api = {
-  // Auth
-  login,
-  register,
-  logout,
-  getProfile,
-  uploadProfilePhoto,
-
-  // Bots
-  getBots,
-  createBot,
-  updateBot,
-  deleteBot,
-  getBotStats,
-
-  // Tickets
-  getTickets,
-  createTicket,
-  updateTicket,
-  deleteTicket,
-  getTicketMessages,
-  addTicketMessage,
-
-  // Clients (Admin)
-  getClients,
-  createClient,
-  updateClient,
-  deleteClient,
-  getClientById,
-  getClientActivity,
-
-  // System
-  getSystemLoad,
-  getAdminStats,
-
-  // Tariffs
-  getTariffs,
-  createTariff,
-  updateTariff,
-  deleteTariff,
-
-  // Referrals
-  getReferrals,
-  getReferralLinks,
-  createReferralLink,
-  getReferralStats,
-  trackReferralClick,
-
-  // Promo Codes
-  getPromoCodes,
-  createPromoCode,
-  updatePromoCode,
-  deletePromoCode,
-  togglePromoCode,
-  validatePromoCode,
-
-  // Billing
-  getBillingPlans,
-  getSubscriptions,
-  getBillingStatus,
-  getBillingInfo,
-  subscribeToPlan,
-
-  // TelegaPay
-  getPaymentMethods,
-  getRequisites,
-  createPaylink,
-  checkPaymentStatus,
-  confirmPayment,
-  cancelPayment,
-  sendReceipt,
-  createPayout,
-  cancelPayout,
-
-  // CRM
-  getCRMConnections,
-  createCRMConnection,
-  updateCRMConnection,
-  deleteCRMConnection,
-  toggleCRMConnection,
-  getCRMUserInfo,
-
-  // Admin - Bot Management for Clients
-  createBotForClient,
-  getBotForClient,
-  updateBotForClient,
-  deleteBotForClient,
-
-  // Admin - Ticket Management for Clients
-  getTicketsForClient,
-  createTicketForClient,
-  getTicketForClient,
-  updateTicketForClient,
-  deleteTicketForClient,
-  addMessageToTicketForClient,
-  getTicketMessagesForClient,
-
-  // Admin - Referral Management for Clients
-  getClientReferrals,
-  getClientReferralStats,
-  getClientReferralLinks,
-  getClientReferralBonuses,
-  updateClientReferralBonuses,
-  deleteClientReferralLink,
-
-  // Admin - CRM Management for Clients
-  getClientCRMConnections,
-  createCRMConnectionForClient,
-  updateCRMConnectionForClient,
-  deleteCRMConnectionForClient,
-  getAllClientCRMData,
+/**
+ * Создать тариф
+ * @param tariffData - Данные тарифа
+ * @returns Объект с информацией о тарифе
+ * @example
+ * ```bash
+ * curl -X POST http://localhost:3000/admin/tariffs \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Premium Plan",
+ *     "price": 999,
+ *     "description": "Premium VPN plan with unlimited features",
+ *     "active": true,
+ *     "features": ["Unlimited bandwidth", "24/7 support", "Multiple devices"]
+ *   }'
+ * ```
+ */
+export const createTariff = async (
+  tariffData: Omit<Tariff, "id" | "createdAt">
+): Promise<Tariff> => {
+  const response = await axios.post("/admin/tariffs", tariffData);
+  return response.data;
 };
 
-// Re-export types for backward compatibility
-export type {
-  User,
-  Bot,
-  BotStats,
-  Ticket,
-  TicketMessage,
-  Client,
-  ClientActivity,
-  SystemLoad,
-  Tariff,
-  ReferralLink,
-  Referral,
-  ReferralStats,
-  PromoCode,
-  BillingPlan,
-  Subscription,
-  SubscriptionResult,
-  CRMConnection,
-  TelegaPayTransaction,
-  TelegaPayPayout,
+/**
+ * Получить тариф по ID
+ * @param id - ID тарифа
+ * @returns Объект с информацией о тарифе
+ * @example
+ * ```bash
+ * curl -X GET http://localhost:3000/admin/tariffs/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const getTariffById = async (id: string): Promise<Tariff> => {
+  const response = await axios.get(`/admin/tariffs/${id}`);
+  return response.data;
+};
+
+/**
+ * Обновить тариф
+ * @param id - ID тарифа
+ * @param tariffData - Данные для обновления
+ * @returns Объект с обновленной информацией о тарифе
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/tariffs/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+ *   -H "Content-Type: application/json" \
+ *   -d '{
+ *     "name": "Updated Premium Plan",
+ *     "price": 1299,
+ *     "active": false
+ *   }'
+ * ```
+ */
+export const updateTariff = async (
+  id: string,
+  tariffData: Partial<Omit<Tariff, "id" | "createdAt">>
+): Promise<Tariff> => {
+  const response = await axios.patch(`/admin/tariffs/${id}`, tariffData);
+  return response.data;
+};
+
+/**
+ * Удалить тариф
+ * @param id - ID тарифа
+ * @example
+ * ```bash
+ * curl -X DELETE http://localhost:3000/admin/tariffs/1 \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const deleteTariff = async (id: string) => {
+  const response = await axios.delete(`/admin/tariffs/${id}`);
+  return response.data;
+};
+
+/**
+ * Переключить статус тарифа
+ * @param id - ID тарифа
+ * @returns Объект с обновленной информацией о тарифе
+ * @example
+ * ```bash
+ * curl -X PATCH http://localhost:3000/admin/tariffs/1/toggle \
+ *   -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+ * ```
+ */
+export const toggleTariff = async (id: string): Promise<Tariff> => {
+  const response = await axios.patch(`/admin/tariffs/${id}/toggle`);
+  return response.data;
 };

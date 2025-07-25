@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getBots, createBot, updateBot, deleteBot } from '../../api';
+import { handleApiError } from '../../utils/errorHandler';
 import type { Bot } from '../../types';
 
 interface UseBotsReturn {
@@ -46,8 +47,8 @@ export function useBots(): UseBotsReturn {
     try {
       const bots = await getBots();
       setBots(bots);
-    } catch {
-      setError('Error loading data');
+    } catch (err) {
+      setError(handleApiError(err, { context: 'load_bots' }));
     } finally {
       setLoading(false);
     }
@@ -79,8 +80,8 @@ export function useBots(): UseBotsReturn {
       }
       closeModal();
       fetchBots();
-    } catch {
-      setFormError('Error loading data');
+    } catch (err) {
+      setFormError(handleApiError(err, { context: 'save_bot' }));
     } finally {
       setFormLoading(false);
     }
@@ -92,7 +93,9 @@ export function useBots(): UseBotsReturn {
     try {
       await deleteBot(id);
       fetchBots();
-    } catch { /* no-op */ }
+    } catch (err) {
+      setError(handleApiError(err, { context: 'delete_bot' }));
+    }
   };
 
   return {

@@ -62,6 +62,15 @@ export interface ClientActivity {
 export interface SystemLoad {
   cpu: number;
   memory: number;
+  disk: number;
+  network: {
+    incoming: number;
+    outgoing: number;
+  };
+  uptime: string;
+  activeUsers: number;
+  totalRequests: number;
+  errorRate: number;
 }
 
 export interface Tariff {

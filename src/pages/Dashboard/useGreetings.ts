@@ -26,12 +26,13 @@ export function useGreetings(t: (key: string) => string): UseGreetingsReturn {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // TODO: заменить на реальный API, если появится
   const fetchGreetings = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      // Здесь должен быть реальный запрос к API
-      setGreetings([]); // Заглушка
+      // Здесь должен быть реальный запрос к API, если он появится
+      setGreetings([]);
     } catch {
       setError(t('errorLoadingData') || 'Ошибка загрузки данных');
     } finally {
@@ -46,7 +47,7 @@ export function useGreetings(t: (key: string) => string): UseGreetingsReturn {
     setFormLoading(true);
     setFormError('');
     try {
-      // Здесь должен быть реальный запрос к API
+      // Здесь должен быть реальный запрос к API, если он появится
       setForm({ text: '' });
       fetchGreetings();
     } catch {
@@ -63,7 +64,7 @@ export function useGreetings(t: (key: string) => string): UseGreetingsReturn {
 
   async function handleDelete(): Promise<void> {
     if (!window.confirm(t('delete') || 'Удалить?')) return;
-    // Здесь должен быть реальный запрос к API
+    // Здесь должен быть реальный запрос к API, если он появится
     fetchGreetings();
   }
 

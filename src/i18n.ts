@@ -217,6 +217,7 @@ const resources = {
       registerTitle: "Register",
       signUp: "Sign up",
       signIn: "Sign in",
+      rememberMe: "Remember me",
       minimumChars: "Minimum 6 characters",
       // Welcome page translations
       welcomeToTelegramApp: "Welcome to Telegram Mini App!",
@@ -477,6 +478,7 @@ const resources = {
       registerTitle: "Регистрация",
       signUp: "Зарегистрироваться",
       signIn: "Войти",
+      rememberMe: "Запомнить меня",
       minimumChars: "Минимум 6 символов",
       // Welcome page translations
       welcomeToTelegramApp: "Добро пожаловать в Telegram Mini App!",

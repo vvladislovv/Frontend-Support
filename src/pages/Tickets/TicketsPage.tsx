@@ -153,9 +153,7 @@ const TicketsPage: React.FC = () => {
           )}
 
           {error && (
-            <div className="card-mobile bg-red-50 border-red-200 mt-4">
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
+            <div className="text-gray-400 text-center py-8">{t('noData') || 'Нет данных (backend недоступен)'}</div>
           )}
 
           <Modal
@@ -179,7 +177,7 @@ const TicketsPage: React.FC = () => {
                 onChange={handleChange}
                 required
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white text-black"
               />
               <Input
                 name="telegramId"
@@ -193,7 +191,7 @@ const TicketsPage: React.FC = () => {
                 name="status"
                 value={form.status}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
               >
                 <option value="OPEN">Открыт</option>
                 <option value="IN_PROGRESS">В работе</option>

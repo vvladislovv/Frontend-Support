@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getProfile } from '../../api';
+import { authService } from '../../services';
 
 interface UseDashboardReturn {
   isAdmin: boolean;
@@ -18,7 +18,7 @@ export function useDashboard(): UseDashboardReturn {
       setLoading(true);
       setError('');
       try {
-        const profile = await getProfile();
+        const profile = await authService.getProfile();
         // В тестовом режиме делаем админом пользователя с ID '1' или если в localStorage есть admin флаг
         const isTestAdmin = profile.id === '1' || localStorage.getItem('test-admin') === 'true';
         setIsAdmin(isTestAdmin);

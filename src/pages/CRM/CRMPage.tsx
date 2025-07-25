@@ -15,6 +15,7 @@ const CRMPage: React.FC = () => {
     clientId: "",
     clientSecret: "",
   });
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -26,10 +27,17 @@ const CRMPage: React.FC = () => {
         crm.getCRMConnections.execute(),
         crm.getCRMUserInfo.execute(),
       ]);
-      setConnections(connectionsData);
+      
+      // Убеждаемся, что connectionsData это массив
+      const safeConnections = Array.isArray(connectionsData) ? connectionsData : [];
+      setConnections(safeConnections);
       setUserInfo(userInfoData);
-    } catch (error) {
-      console.error("Error loading CRM data:", error);
+      setLoadError(false);
+    } catch (err) {
+      console.error("Error loading data:", err);
+      setLoadError(true);
+      setConnections([]);
+      setUserInfo(null);
     }
   };
 
@@ -37,18 +45,18 @@ const CRMPage: React.FC = () => {
     e.preventDefault();
     try {
       const newConnection = await crm.createCRMConnection.execute({
-        userId: "1", // В реальном приложении получать из контекста
+        userId: 1,
         provider: formData.provider,
         accessToken: formData.accessToken,
         refreshToken: formData.refreshToken,
         domain: formData.domain,
-        isActive: true,
+        expiresAt: new Date().toISOString(),
         otherData: {
           clientId: formData.clientId,
           clientSecret: formData.clientSecret,
         },
       });
-      setConnections((prev) => [...prev, newConnection]);
+      setConnections([...connections, newConnection]);
       setShowCreateForm(false);
       setFormData({
         provider: "AMOCRM",
@@ -58,19 +66,21 @@ const CRMPage: React.FC = () => {
         clientId: "",
         clientSecret: "",
       });
-    } catch (error) {
-      console.error("Error creating CRM connection:", error);
+    } catch (err) {
+      console.error("Error creating CRM connection:", err);
     }
   };
 
   const handleToggleConnection = async (id: string) => {
     try {
       const updatedConnection = await crm.toggleCRMConnection.execute(id);
-      setConnections((prev) =>
-        prev.map((conn) => (conn.id === id ? updatedConnection : conn))
+      setConnections(
+        Array.isArray(connections) 
+          ? connections.map(conn => conn.id === id ? updatedConnection : conn)
+          : []
       );
-    } catch (error) {
-      console.error("Error toggling CRM connection:", error);
+    } catch (err) {
+      console.error("Error toggling CRM connection:", err);
     }
   };
 
@@ -79,9 +89,13 @@ const CRMPage: React.FC = () => {
 
     try {
       await crm.deleteCRMConnection.execute(id);
-      setConnections((prev) => prev.filter((conn) => conn.id !== id));
-    } catch (error) {
-      console.error("Error deleting CRM connection:", error);
+      setConnections(
+        Array.isArray(connections) 
+          ? connections.filter(conn => conn.id !== id)
+          : []
+      );
+    } catch (err) {
+      console.error("Error deleting CRM connection:", err);
     }
   };
 
@@ -113,7 +127,6 @@ const CRMPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Статистика CRM */}
       {userInfo && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
@@ -145,7 +158,6 @@ const CRMPage: React.FC = () => {
         </div>
       )}
 
-      {/* Подключения */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-medium text-gray-900">CRM подключения</h2>
@@ -158,17 +170,16 @@ const CRMPage: React.FC = () => {
         </div>
 
         <div className="p-6">
-          {connections.length === 0 ? (
+          {loadError ? (
+            <div className="text-gray-400 text-center py-8">Нет данных (backend недоступен)</div>
+          ) : !Array.isArray(connections) || connections.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               У вас пока нет CRM подключений. Добавьте первое!
             </p>
           ) : (
             <div className="space-y-4">
               {connections.map((connection) => (
-                <div
-                  key={connection.id}
-                  className="border border-gray-200 rounded-lg p-4"
-                >
+                <div key={connection.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <h3 className="font-medium text-gray-900">
@@ -179,11 +190,7 @@ const CRMPage: React.FC = () => {
                       </p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                          connection.isActive
-                        )}`}
-                      >
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(connection.isActive)}`}>
                         {connection.isActive ? "Активно" : "Неактивно"}
                       </span>
                       <button
@@ -210,7 +217,6 @@ const CRMPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Форма создания подключения */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -225,15 +231,12 @@ const CRMPage: React.FC = () => {
                 <select
                   value={formData.provider}
                   onChange={(e) =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
-                      provider: e.target.value as
-                        | "AMOCRM"
-                        | "BITRIX24"
-                        | "HUBSPOT",
+                      provider: e.target.value as "AMOCRM" | "BITRIX24" | "HUBSPOT",
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                 >
                   <option value="AMOCRM">amoCRM</option>
                   <option value="BITRIX24">Bitrix24</option>
@@ -249,10 +252,10 @@ const CRMPage: React.FC = () => {
                   type="url"
                   value={formData.domain}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, domain: e.target.value }))
+                    setFormData(prev => ({ ...prev, domain: e.target.value }))
                   }
                   placeholder="https://your-domain.amocrm.ru"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black placeholder:text-gray-500"
                   required
                 />
               </div>
@@ -265,12 +268,12 @@ const CRMPage: React.FC = () => {
                   type="text"
                   value={formData.accessToken}
                   onChange={(e) =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
                       accessToken: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
                   required
                 />
               </div>
@@ -283,7 +286,7 @@ const CRMPage: React.FC = () => {
                   type="text"
                   value={formData.refreshToken}
                   onChange={(e) =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
                       refreshToken: e.target.value,
                     }))
@@ -300,7 +303,7 @@ const CRMPage: React.FC = () => {
                   type="text"
                   value={formData.clientId}
                   onChange={(e) =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
                       clientId: e.target.value,
                     }))
@@ -317,7 +320,7 @@ const CRMPage: React.FC = () => {
                   type="password"
                   value={formData.clientSecret}
                   onChange={(e) =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
                       clientSecret: e.target.value,
                     }))

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getReferrals, createReferralLink } from '../../api';
+import { getReferrals, getNewReferralLink } from '../../api';
 import type { ReferralLink } from '../../types';
 
 interface UseReferralsReturn {
@@ -34,7 +34,7 @@ export function useReferrals(t: (key: string) => string): UseReferralsReturn {
 
   const throttledCreateLink = throttle(async () => {
     try {
-      const { code } = await createReferralLink();
+      const { code } = await getNewReferralLink();
       setNewLink(`${window.location.origin}/register?ref=${code}`);
       fetchReferrals();
     } catch {

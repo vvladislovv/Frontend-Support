@@ -67,3 +67,12 @@ export default tseslint.config([
   },
 ])
 ```
+
+## CORS Configuration
+
+Ваша CORS-настройка уже корректная для фронта на порту 5173:
+Это значит:
+Любой запрос с фронта на http://localhost:5173 будет принят.
+Разрешены все основные методы.
+Разрешены заголовки Content-Type, Authorization, Accept.
+credentials: true — можно использовать куки/авторизацию.

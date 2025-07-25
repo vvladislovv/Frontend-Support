@@ -51,6 +51,17 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
               />
             </div>
             
+            <div className="flex items-center justify-between">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  defaultChecked={true}
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                />
+                <span className="ml-2 text-sm tg-text">{t('rememberMe')}</span>
+              </label>
+            </div>
+            
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-red-600 text-sm">{error}</p>
@@ -75,11 +86,7 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
             </p>
           </div>
 
-          <div className="mt-8 text-center">
-            <p className="text-xs tg-hint">{t('testData')}</p>
-            <p className="text-xs tg-hint">admin@example.com / admin123</p>
-            <p className="text-xs tg-hint">test@example.com / password</p>
-          </div>
+
         </div>
       </div>
     );
@@ -103,6 +110,16 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
           placeholder={t('passwordPlaceholder')}
           required
         />
+        <div className="flex items-center justify-between">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              defaultChecked={true}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-600">{t('rememberMe')}</span>
+          </label>
+        </div>
         {error && <div className="text-red-500 text-sm">{error}</div>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? t('loggingIn') : t('signIn')}
@@ -116,11 +133,7 @@ const Login: React.FC<LoginProps> = ({ onAuth }) => {
           </Link>
         </p>
       </div>
-      <div className="mt-6 text-center text-xs text-gray-500">
-        <p>{t('testData')}:</p>
-        <p>admin@example.com / admin123</p>
-        <p>test@example.com / password</p>
-      </div>
+
     </div>
   );
 };

@@ -38,31 +38,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children, isAuth, isAdmin, load
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow mt-12 text-center text-black">
-        <h2 className="text-2xl font-bold mb-4">🔒 {t('accessDenied')}</h2>
-        <p className="mb-4">{t('adminRightsRequired')}</p>
-        <p className="text-sm text-gray-500 mb-4">
-          {t('debug')}: isAuth={isAuth.toString()}, isAdmin={isAdmin.toString()}
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Link to="/dashboard">
-            <Button variant="primary">{t('backToHome')}</Button>
-          </Link>
-          <Button 
-            variant="danger"
-            onClick={() => {
-              localStorage.setItem('test-admin', 'true');
-              window.location.reload();
-            }}
-          >
-            🔧 {t('enableTestAdmin')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Убираем проверку isAdmin - теперь админка доступна всем авторизованным пользователям
 
   return <>{children}</>;
 };

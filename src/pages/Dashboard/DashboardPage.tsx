@@ -16,6 +16,7 @@ const DashboardPage: React.FC = () => {
     activeUsers: 0,
     messages: 0
   });
+  const [loadError, setLoadError] = useState(false);
 
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
 
@@ -36,8 +37,10 @@ const DashboardPage: React.FC = () => {
         activeUsers: botsData.reduce((sum, bot) => sum + (bot.stats?.activeUsers || 0), 0),
         messages: botsData.reduce((sum, bot) => sum + (bot.stats?.messagesCount || 0), 0)
       });
+      setLoadError(false);
     } catch (error) {
-      console.error('Error loading stats:', error);
+      setLoadError(true);
+      setStats({ botsCount: 0, ticketsCount: 0, activeUsers: 0, messages: 0 });
     }
   };
 
@@ -67,40 +70,52 @@ const DashboardPage: React.FC = () => {
                   <p className="text-sm text-purple-700">{t('youHaveAdminRights')}</p>
                 </div>
               </div>
-              <Link
-                to="/admin"
-                className="mt-3 block w-full text-center py-2 bg-purple-500 text-white rounded-lg font-medium active:bg-purple-600 transition-colors"
-              >
-                {t('adminPanel')}
-              </Link>
+              <div className="mt-3 flex gap-2">
+                <Link
+                  to="/admin"
+                  className="flex-1 text-center py-2 bg-purple-500 text-white rounded-lg font-medium active:bg-purple-600 transition-colors"
+                >
+                  {t('adminPanel')}
+                </Link>
+                <Link
+                  to="/api-test"
+                  className="flex-1 text-center py-2 bg-blue-500 text-white rounded-lg font-medium active:bg-blue-600 transition-colors"
+                >
+                  🔧 API
+                </Link>
+              </div>
             </div>
           )}
 
           {/* Статистика */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold tg-text mb-3">{t('quickStats')}</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="card-mobile text-center">
-                <div className="text-2xl mb-1">🤖</div>
-                <div className="text-xl font-bold tg-text">{stats.botsCount}</div>
-                <div className="text-sm tg-hint">{t('activeBotsCount')}</div>
+            {loadError ? (
+              <div className="text-gray-400 text-center py-8">{t('noData') || 'Нет данных (backend недоступен)'}</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="card-mobile text-center">
+                  <div className="text-2xl mb-1">🤖</div>
+                  <div className="text-xl font-bold tg-text">{stats.botsCount}</div>
+                  <div className="text-sm tg-hint">{t('activeBotsCount')}</div>
+                </div>
+                <div className="card-mobile text-center">
+                  <div className="text-2xl mb-1">🎫</div>
+                  <div className="text-xl font-bold tg-text">{stats.ticketsCount}</div>
+                  <div className="text-sm tg-hint">{t('newTickets')}</div>
+                </div>
+                <div className="card-mobile text-center">
+                  <div className="text-2xl mb-1">👥</div>
+                  <div className="text-xl font-bold tg-text">{stats.activeUsers}</div>
+                  <div className="text-sm tg-hint">{t('users')}</div>
+                </div>
+                <div className="card-mobile text-center">
+                  <div className="text-2xl mb-1">💬</div>
+                  <div className="text-xl font-bold tg-text">{stats.messages}</div>
+                  <div className="text-sm tg-hint">{t('messages')}</div>
+                </div>
               </div>
-              <div className="card-mobile text-center">
-                <div className="text-2xl mb-1">🎫</div>
-                <div className="text-xl font-bold tg-text">{stats.ticketsCount}</div>
-                <div className="text-sm tg-hint">{t('newTickets')}</div>
-              </div>
-              <div className="card-mobile text-center">
-                <div className="text-2xl mb-1">👥</div>
-                <div className="text-xl font-bold tg-text">{stats.activeUsers}</div>
-                <div className="text-sm tg-hint">{t('users')}</div>
-              </div>
-              <div className="card-mobile text-center">
-                <div className="text-2xl mb-1">💬</div>
-                <div className="text-xl font-bold tg-text">{stats.messages}</div>
-                <div className="text-sm tg-hint">{t('messages')}</div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Быстрые действия */}

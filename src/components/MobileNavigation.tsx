@@ -6,7 +6,8 @@ import {
   CogIcon,
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
-  TicketIcon
+  TicketIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
@@ -14,7 +15,8 @@ import {
   CogIcon as CogIconSolid,
   ChartBarIcon as ChartBarIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
-  TicketIcon as TicketIconSolid
+  TicketIcon as TicketIconSolid,
+  ShieldCheckIcon as ShieldCheckIconSolid
 } from '@heroicons/react/24/solid';
 
 interface MobileNavigationProps {
@@ -56,6 +58,12 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({ isAuth, isAdmin }) 
       icon: TicketIcon,
       iconSolid: TicketIconSolid,
     },
+    ...(isAdmin ? [{
+      path: '/admin',
+      label: t('admin'),
+      icon: ShieldCheckIcon,
+      iconSolid: ShieldCheckIconSolid,
+    }] : []),
     {
       path: '/profile',
       label: t('profile'),

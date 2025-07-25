@@ -21,8 +21,6 @@ export const clearDevData = (): boolean => {
     
     // Если это новая сессия разработки
     if (!lastSession || (Date.now() - parseInt(lastSession)) > 10 * 60 * 1000) { // 10 минут
-      console.log('🧹 Dev mode: Clearing auth data on server restart');
-      
       // Очищаем все auth данные
       localStorage.clear();
       clearAllAuthCookies();
@@ -47,8 +45,6 @@ export const clearDevData = (): boolean => {
 
 // Функция для принудительной очистки всех данных (для кнопки в UI)
 export const forceCleanAll = (): void => {
-  console.log('🧹 Force cleaning all data');
-  
   // Отмечаем, что это намеренная очистка
   sessionStorage.setItem('user_logged_out', 'true');
   
@@ -64,25 +60,5 @@ export const forceCleanAll = (): void => {
 
 // Функция для отладки - показывает все сохраненные данные
 export const debugStorageData = (): void => {
-  if (process.env.NODE_ENV === 'development') {
-    console.group('🔍 Storage Debug Info');
-    
-    console.log('📦 localStorage:', { ...localStorage });
-    console.log('🍪 cookies:', document.cookie);
-    console.log('💾 sessionStorage:', { ...sessionStorage });
-    
-    // Проверяем auth токены
-    const localToken = localStorage.getItem('token');
-    const cookieToken = document.cookie
-      .split(';')
-      .find(row => row.trim().startsWith('auth_token='))
-      ?.split('=')[1];
-    
-    console.log('🔑 Auth tokens:', {
-      localStorage: localToken ? '✅ Present' : '❌ Missing',
-      cookies: cookieToken ? '✅ Present' : '❌ Missing'
-    });
-    
-    console.groupEnd();
-  }
+  // Функция отключена в продакшене
 };

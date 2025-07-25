@@ -16,6 +16,7 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
 
@@ -26,9 +27,19 @@ const ProfilePage: React.FC = () => {
   const loadProfile = async () => {
     try {
       const profileData = await auth.getProfile.execute();
-      setProfile(profileData);
+      // Ensure we have required fields with fallbacks
+      const safeProfile = {
+        ...profileData,
+        name: profileData?.name || 'Unknown User',
+        email: profileData?.email || 'No email',
+        role: profileData?.role || 'user'
+      };
+      setProfile(safeProfile);
+      setLoadError(false);
     } catch (error) {
       console.error('Error loading profile:', error);
+      setLoadError(true);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -59,6 +70,14 @@ const ProfilePage: React.FC = () => {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-gray-400 text-center py-8">Нет данных (backend недоступен)</div>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -85,7 +104,7 @@ const ProfilePage: React.FC = () => {
                   />
                 ) : (
                   <span className="text-2xl text-white">
-                    {profile.name.charAt(0).toUpperCase()}
+                    {profile.name ? profile.name.charAt(0).toUpperCase() : '?'}
                   </span>
                 )}
               </div>
@@ -103,7 +122,7 @@ const ProfilePage: React.FC = () => {
               </label>
             </div>
             
-            <h1 className="text-xl font-bold tg-text mb-1">{profile.name}</h1>
+            <h1 className="text-xl font-bold tg-text mb-1">{profile.name || 'Unknown User'}</h1>
             <p className="text-sm tg-hint mb-4">{profile.email}</p>
             
             {profile.role === 'admin' && (
@@ -135,7 +154,7 @@ const ProfilePage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="tg-hint">{t('name')}</span>
-                <span className="tg-text font-medium">{profile.name}</span>
+                <span className="tg-text font-medium">{profile.name || 'Unknown User'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="tg-hint">{t('user')}</span>
@@ -204,7 +223,7 @@ const ProfilePage: React.FC = () => {
               />
             ) : (
               <span className="text-3xl text-white">
-                {profile.name.charAt(0).toUpperCase()}
+                {profile.name ? profile.name.charAt(0).toUpperCase() : '?'}
               </span>
             )}
           </div>
@@ -222,7 +241,7 @@ const ProfilePage: React.FC = () => {
           </label>
         </div>
         
-        <h1 className="text-2xl font-bold text-black mb-2">{profile.name}</h1>
+        <h1 className="text-2xl font-bold text-black mb-2">{profile.name || 'Unknown User'}</h1>
         <p className="text-gray-600 mb-4">{profile.email}</p>
         
         {profile.role === 'admin' && (
@@ -252,7 +271,7 @@ const ProfilePage: React.FC = () => {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">{t('name')}:</span>
-            <span className="text-black font-medium">{profile.name}</span>
+            <span className="text-black font-medium">{profile.name || 'Unknown User'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">{t('user')}:</span>

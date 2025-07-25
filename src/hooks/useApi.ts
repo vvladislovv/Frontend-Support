@@ -120,16 +120,12 @@ export const useClients = () => {
 
 export const useReferrals = () => {
   const getReferrals = useApi(api.getReferrals);
-  const getReferralLinks = useApi(api.getReferralLinks);
-  const createReferralLink = useApi(api.createReferralLink);
-  const getReferralStats = useApi(api.getReferralStats);
+  const getNewReferralLink = useApi(api.getNewReferralLink);
   const trackReferralClick = useApi(api.trackReferralClick);
 
   return {
     getReferrals,
-    getReferralLinks,
-    createReferralLink,
-    getReferralStats,
+    getNewReferralLink,
     trackReferralClick,
   };
 };
@@ -154,7 +150,7 @@ export const usePromoCodes = () => {
 
 export const useBilling = () => {
   const getBillingPlans = useApi(api.getBillingPlans);
-  const getSubscriptions = useApi(api.getSubscriptions);
+  const getSubscriptions = useApi(api.getUserSubscriptions);
   const getBillingStatus = useApi(api.getBillingStatus);
   const getBillingInfo = useApi(api.getBillingInfo);
   const subscribeToPlan = useApi(api.subscribeToPlan);

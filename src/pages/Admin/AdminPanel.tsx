@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAdminPanel } from './useAdminPanel';
-import type { Client } from '../../api';
+import type { Client } from '../../types';
 import { Button } from '../../components/common/Button';
 
 interface AdminPanelProps {

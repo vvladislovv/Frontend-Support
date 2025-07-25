@@ -10,6 +10,7 @@ const BillingPage: React.FC = () => {
     null
   );
   const [promoCode, setPromoCode] = useState<string>("");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -25,8 +26,12 @@ const BillingPage: React.FC = () => {
       setPlans(plansData);
       setSubscriptions(subscriptionsData);
       setBillingStatus(statusData);
+      setLoadError(false);
     } catch (error) {
-      console.error("Error loading billing data:", error);
+      setLoadError(true);
+      setPlans([]);
+      setSubscriptions([]);
+      setBillingStatus(null);
     }
   };
 
@@ -193,7 +198,11 @@ const BillingPage: React.FC = () => {
           </h2>
         </div>
         <div className="p-6">
-          {subscriptions.length === 0 ? (
+          {loadError ? (
+            <div className="text-gray-400 text-center py-8">
+              Нет данных (backend недоступен)
+            </div>
+          ) : subscriptions.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
               У вас пока нет подписок
             </p>

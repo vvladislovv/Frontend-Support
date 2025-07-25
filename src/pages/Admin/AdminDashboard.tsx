@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { useAppApi } from '../../hooks/useApi';
+import { adminService } from '../../services';
 import { isTelegramWebApp } from '../../telegram';
 import MobileHeader from '../../components/MobileHeader';
 
 const AdminDashboard: React.FC = () => {
   const { t } = useTranslation();
-  const { admin } = useAppApi();
+
   const [stats, setStats] = useState({
     totalClients: 0,
     activeClients: 0,
@@ -27,7 +27,7 @@ const AdminDashboard: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const statsData = await admin.getAdminStats.execute();
+      const statsData = await adminService.getAdminStats();
       setStats(statsData);
     } catch (error) {
       console.error('Error loading admin stats:', error);

@@ -11,7 +11,19 @@ interface UseAdminPanelReturn {
 
 export function useAdminPanel(): UseAdminPanelReturn {
   const [clients, setClients] = useState<Client[]>([]);
-  const [systemLoad, setSystemLoad] = useState<SystemLoad>({ cpu: 0, memory: 0 });
+  const [systemLoad, setSystemLoad] = useState<SystemLoad>({
+    cpu: 0,
+    memory: 0,
+    disk: 0,
+    network: {
+      incoming: 0,
+      outgoing: 0
+    },
+    uptime: '',
+    activeUsers: 0,
+    totalRequests: 0,
+    errorRate: 0
+  });
   const [loading, setLoading] = useState<boolean>(true);
   // error не используется в компоненте, убираем
 

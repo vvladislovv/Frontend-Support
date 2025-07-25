@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useAppApi } from '../../hooks/useApi';
+import { referralService } from '../../services';
 import type { ReferralLink, ReferralStats } from '../../types';
 
 const ReferralsPage: React.FC = () => {
-  const { referrals } = useAppApi();
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [links, setLinks] = useState<ReferralLink[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -13,23 +14,31 @@ const ReferralsPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [statsData, linksData] = await Promise.all([
-        referrals.getReferralStats.execute(),
-        referrals.getReferralLinks.execute(),
-      ]);
+      setLoading(true);
+      // Получаем реальные данные с backend
+      const statsData = await referralService.getReferralStats();
       setStats(statsData);
-      setLinks(linksData);
+      const referralsData = await referralService.getReferrals();
+      setLinks(referralsData);
+      setLoadError(false);
     } catch (error) {
-      console.error('Error loading referral data:', error);
+      setLoadError(true);
+      setStats(null);
+      setLinks([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateLink = async () => {
     try {
-      const newLink = await referrals.createReferralLink.execute();
+      setLoading(true);
+      const newLink = await referralService.getNewReferralLink();
       setLinks(prev => [...prev, newLink]);
     } catch (error) {
       console.error('Error creating referral link:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,46 +82,50 @@ const ReferralsPage: React.FC = () => {
           <h2 className="text-lg font-medium text-gray-900">Реферальные ссылки</h2>
           <button
             onClick={handleCreateLink}
-            disabled={referrals.createReferralLink.loading}
+            disabled={loading}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
-            {referrals.createReferralLink.loading ? 'Создание...' : 'Создать ссылку'}
+            {loading ? 'Создание...' : 'Создать ссылку'}
           </button>
         </div>
 
         <div className="p-6">
-          {links.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              У вас пока нет реферальных ссылок. Создайте первую!
-            </p>
+          {loadError ? (
+            <div className="text-gray-400 text-center py-8">Нет данных (backend недоступен)</div>
           ) : (
-            <div className="space-y-4">
-              {links.map((link) => (
-                <div key={link.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900">Код: {link.code}</span>
-                    <div className="flex space-x-4 text-sm text-gray-500">
-                      <span>Переходы: {link.clicks}</span>
-                      <span>Регистрации: {link.registrations}</span>
+            links.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">
+                У вас пока нет реферальных ссылок. Создайте первую!
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {links.map((link) => (
+                  <div key={link.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-900">Код: {link.code}</span>
+                      <div className="flex space-x-4 text-sm text-gray-500">
+                        <span>Переходы: {link.clicks}</span>
+                        <span>Регистрации: {link.registrations}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={`${window.location.origin}/auth/register?ref=${link.code}`}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(`${window.location.origin}/auth/register?ref=${link.code}`)}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                      >
+                        Копировать
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={`${window.location.origin}/auth/register?ref=${link.code}`}
-                      readOnly
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                    />
-                    <button
-                      onClick={() => copyToClipboard(`${window.location.origin}/auth/register?ref=${link.code}`)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                    >
-                      Копировать
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>

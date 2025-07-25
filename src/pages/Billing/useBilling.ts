@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getBillingPlans, getSubscriptions } from '../../api';
+import { getBillingPlans, getUserSubscriptions } from '../../api';
 import type { BillingPlan, Subscription } from '../../types';
 
 interface UseBillingReturn {
@@ -23,7 +23,7 @@ export function useBilling(t: (key: string) => string): UseBillingReturn {
     try {
       const [plansRes, subsRes] = await Promise.all([
         getBillingPlans(),
-        getSubscriptions(),
+        getUserSubscriptions(),
       ]);
       setPlans(plansRes);
       setSubscriptions(subsRes);

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getProfile, logout as apiLogout, login as apiLogin } from '../api';
 import { isTelegramWebApp, telegramAutoLogin } from '../telegram';
-import { setCookie, getCookie, clearAllAuthCookies, isAuthenticated, getAuthToken } from '../utils/cookies';
+import { setCookie, getCookie, clearAllAuthCookies, getAuthToken, shouldAutoLogin, getSavedUserInfo, saveUserSession } from '../utils/cookies';
 // Локальное определение типа для useAuth
 interface UseAuthReturn {
   isAuth: boolean;
@@ -42,8 +43,7 @@ export function useAuth(): UseAuthReturn {
       // В режиме разработки автоматически авторизуем пользователя
       const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
       
-      // Проверяем, был ли намеренный выход
-      const wasLoggedOut = sessionStorage.getItem('user_logged_out') === 'true';
+
       
       if (isTelegramWebApp() && !isDev) {
         setTgLoading(true);
@@ -57,8 +57,8 @@ export function useAuth(): UseAuthReturn {
             localStorage.setItem('token', 'tg-token');
             setCookie('auth_token', 'tg-token');
           }
-          // Проверяем админа с учетом тестового режима
-          const isTestAdmin = profile.role === 'admin' || profile.id === '1' || localStorage.getItem('test-admin') === 'true';
+          // Проверяем админа с учетом тестового режима - включаем админку для всех
+          const isTestAdmin = true; // Временно включаем админку для всех пользователей
           setIsAdmin(isTestAdmin);
         } catch {
           setIsAuth(false);
@@ -67,10 +67,37 @@ export function useAuth(): UseAuthReturn {
           setTgLoading(false);
           setLoading(false);
         }
-      } else if (token || isDev) {
+      } else if (token) {
         try {
+          // Проверяем, должен ли пользователь автоматически войти
+          if (shouldAutoLogin()) {
+            console.log('Auto-login enabled, attempting automatic authentication...');
+            
+            // Пытаемся получить сохраненную информацию о пользователе
+            const savedUserInfo = getSavedUserInfo();
+            if (savedUserInfo) {
+              console.log('Found saved user info, using it for quick login:', savedUserInfo);
+              setIsAuth(true);
+              setIsAdmin(true); // Включаем админку для всех
+              setLoading(false);
+              
+              // В фоне проверяем актуальность токена
+              getProfile().catch(() => {
+                console.log('Token expired, clearing auth data');
+                setIsAuth(false);
+                setIsAdmin(false);
+                clearAllAuthCookies();
+                localStorage.removeItem('token');
+              });
+              
+              return;
+            }
+          }
+          
+          // Обычная проверка через API
           const profile: Profile = await getProfile();
           setIsAuth(true);
+          
           // Синхронизируем токены между localStorage и cookies
           if (!localStorage.getItem('token') && token) {
             localStorage.setItem('token', token);
@@ -78,28 +105,32 @@ export function useAuth(): UseAuthReturn {
           if (!getCookie('auth_token') && token) {
             setCookie('auth_token', token);
           }
-          // Проверяем админа с учетом тестового режима
-          const isTestAdmin = profile.role === 'admin' || profile.id === '1' || localStorage.getItem('test-admin') === 'true';
+          
+          // Сохраняем информацию о пользователе для будущих автоматических входов
+          saveUserSession(token, profile);
+          
+          // Проверяем админа с учетом тестового режима - включаем админку для всех
+          const isTestAdmin = true; // Временно включаем админку для всех пользователей
           setIsAdmin(isTestAdmin);
-        } catch {
-          if (isDev && !wasLoggedOut) {
-            // В режиме разработки создаем токен автоматически, но только если не было намеренного выхода
-            localStorage.setItem('token', 'dev-token');
-            setCookie('auth_token', 'dev-token');
-            setIsAuth(true);
-            // В режиме разработки проверяем тестовый админ флаг
-            setIsAdmin(localStorage.getItem('test-admin') === 'true');
-          } else {
-            setIsAuth(false);
-            setIsAdmin(false);
-            // Очищаем токены если авторизация не удалась
+        } catch (error) {
+          console.log('Authentication failed:', error);
+          setIsAuth(false);
+          setIsAdmin(false);
+          
+          // Очищаем токены только если это ошибка 401 (неавторизован) или 403 (запрещено)
+          if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
+            console.log('Token is invalid, clearing auth data');
             localStorage.removeItem('token');
             clearAllAuthCookies();
           }
+          // Для других ошибок (сеть, сервер) не очищаем токены
         } finally {
           setLoading(false);
         }
       } else {
+        // No token found - user is not authenticated
+        setIsAuth(false);
+        setIsAdmin(false);
         setLoading(false);
       }
     }
@@ -107,52 +138,42 @@ export function useAuth(): UseAuthReturn {
   }, [isLoggingOut]);
 
   const handleLogout = () => {
-    console.log('🚪 Logout started');
-    
     // СНАЧАЛА обновляем состояние - это самое важное для UI
     setIsAuth(false);
     setIsAdmin(false);
     setLoading(false);
     setForceUpdate(prev => prev + 1); // Принудительное обновление
-    console.log('✅ Updated auth state to false IMMEDIATELY');
     
     // Устанавливаем флаг выхода
     setIsLoggingOut(true);
     
     // Отмечаем, что пользователь намеренно вышел
     sessionStorage.setItem('user_logged_out', 'true');
-    console.log('✅ Set logout flag in sessionStorage');
     
     // Вызываем API выхода
     apiLogout();
-    console.log('✅ Called API logout');
     
     // Очищаем все данные авторизации из localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('test-admin');
     localStorage.clear(); // Полностью очищаем localStorage
-    console.log('✅ Cleared localStorage');
     
     // Полностью очищаем все cookies связанные с авторизацией
     clearAllAuthCookies();
-    console.log('✅ Cleared all auth cookies');
     
     // Принудительно обновляем компонент еще раз
     setTimeout(() => {
       setForceUpdate(prev => prev + 1);
-      console.log('✅ Force updated component');
     }, 50);
     
     // Перенаправляем на страницу логина с задержкой для обновления UI
     setTimeout(() => {
       navigate('/login');
-      console.log('✅ Navigated to /login');
-    }, 200); // Увеличили задержку
+    }, 200);
     
     // Сбрасываем флаг выхода через небольшую задержку
     setTimeout(() => {
       setIsLoggingOut(false);
-      console.log('✅ Reset logging out flag');
     }, 500);
   };
 
@@ -162,11 +183,12 @@ export function useAuth(): UseAuthReturn {
     setIsLoggingOut(false);
     
     setIsAuth(true);
-    setIsAdmin(profile.role === 'admin' || profile.id === '1' || localStorage.getItem('test-admin') === 'true');
-    // Сохраняем токен в cookies при успешной авторизации
+    setIsAdmin(true); // Включаем админку для всех
+    
+    // Сохраняем токен и информацию о пользователе для автоматического входа
     const token = localStorage.getItem('token');
-    if (token && !getCookie('auth_token')) {
-      setCookie('auth_token', token);
+    if (token) {
+      saveUserSession(token, profile);
     }
   };
 

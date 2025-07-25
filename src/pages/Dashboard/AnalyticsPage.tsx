@@ -9,42 +9,16 @@ import { isTelegramWebApp } from '../../telegram';
 const AnalyticsPage: React.FC = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showBotsModal, setShowBotsModal] = useState(false);
   const [showYearModal, setShowYearModal] = useState(false);
   const isMobile = window.innerWidth <= 768 || isTelegramWebApp();
   
-  // {t('testData')}
-  const [analytics] = useState({
-    overview: {
-      totalBots: 3,
-      activeTickets: 5,
-      totalMessages: 1247,
-      totalUsers: 89,
-      uptime: 99.8
-    },
-    monthlyStats: {
-      messages: [120, 150, 180, 220, 190, 240, 280, 320, 290, 350, 380, 420],
-      users: [10, 15, 22, 28, 35, 42, 48, 55, 63, 71, 78, 89],
-      tickets: [2, 3, 1, 4, 2, 5, 3, 6, 4, 2, 3, 5]
-    },
-    topBots: [
-      { name: t('myFirstBot'), messages: 456, users: 34 },
-      { name: t('customerSupport'), messages: 321, users: 28 },
-      { name: t('testBot'), messages: 189, users: 15 }
-    ],
-    recentActivity: [
-      { time: `2 ${t('minutesAgo')}`, action: `${t('newTicketFrom')} @user123` },
-      { time: `15 ${t('minutesAgo')}`, action: `${t('customerSupport')} ${t('botSentMessages')} 5` },
-      { time: `1 ${t('hourAgo')}`, action: `${t('createdNewBot')} "Продажи"` },
-      { time: `3 ${t('hoursAgo')}`, action: `${t('closedTicket')} #1247` }
-    ]
-  });
-
   useEffect(() => {
-    // {t('simulateDataLoading')}
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
+    // TODO: заменить на реальный запрос к API, если появится
+    setLoading(false);
+    setAnalytics(null);
   }, []);
 
   if (loading) {
@@ -75,26 +49,26 @@ const AnalyticsPage: React.FC = () => {
           {/* Основные метрики */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="card-mobile bg-blue-50 border-blue-200 text-center">
-              <div className="text-2xl font-bold text-blue-600 mb-1">{analytics.overview.totalBots}</div>
+              <div className="text-2xl font-bold text-blue-600 mb-1">{analytics?.overview?.totalBots || 'N/A'}</div>
               <div className="text-xs tg-hint">🤖 {t('bots')}</div>
             </div>
             <div className="card-mobile bg-green-50 border-green-200 text-center">
-              <div className="text-2xl font-bold text-green-600 mb-1">{analytics.overview.activeTickets}</div>
+              <div className="text-2xl font-bold text-green-600 mb-1">{analytics?.overview?.activeTickets || 'N/A'}</div>
               <div className="text-xs tg-hint">🎫 {t('tickets')}</div>
             </div>
             <div className="card-mobile bg-purple-50 border-purple-200 text-center">
-              <div className="text-2xl font-bold text-purple-600 mb-1">{analytics.overview.totalMessages}</div>
+              <div className="text-2xl font-bold text-purple-600 mb-1">{analytics?.overview?.totalMessages || 'N/A'}</div>
               <div className="text-xs tg-hint">💬 {t('messages')}</div>
             </div>
             <div className="card-mobile bg-orange-50 border-orange-200 text-center">
-              <div className="text-2xl font-bold text-orange-600 mb-1">{analytics.overview.totalUsers}</div>
+              <div className="text-2xl font-bold text-orange-600 mb-1">{analytics?.overview?.totalUsers || 'N/A'}</div>
               <div className="text-xs tg-hint">👥 {t('users')}</div>
             </div>
           </div>
 
           {/* Аптайм */}
           <div className="card-mobile mb-6 bg-cyan-50 border-cyan-200 text-center">
-            <div className="text-3xl font-bold text-cyan-600 mb-1">{analytics.overview.uptime}%</div>
+            <div className="text-3xl font-bold text-cyan-600 mb-1">{analytics?.overview?.uptime || 'N/A'}%</div>
             <div className="text-sm tg-hint">⚡ {t('systemUptime')}</div>
           </div>
 
@@ -110,7 +84,7 @@ const AnalyticsPage: React.FC = () => {
               </button>
             </div>
             <div className="space-y-3">
-              {analytics.topBots.map((bot, index) => (
+              {analytics?.topBots?.map((bot: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-sm">
@@ -142,7 +116,7 @@ const AnalyticsPage: React.FC = () => {
               </button>
             </div>
             <div className="space-y-3">
-              {analytics.recentActivity.slice(0, 3).map((activity, index) => (
+              {analytics?.recentActivity?.slice(0, 3).map((activity: any, index: number) => (
                 <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                   <div className="flex-1">
@@ -166,7 +140,7 @@ const AnalyticsPage: React.FC = () => {
               </button>
             </div>
             <div className="grid grid-cols-12 gap-1 h-24 mb-3">
-              {analytics.monthlyStats.messages.map((value, index) => (
+              {analytics?.monthlyStats?.messages?.map((value: number, index: number) => (
                 <div key={index} className="flex flex-col justify-end">
                   <div 
                     className="bg-blue-500 rounded-t"
@@ -182,7 +156,7 @@ const AnalyticsPage: React.FC = () => {
           {/* Модальные окна */}
           <Modal open={showActivityModal} onClose={() => setShowActivityModal(false)} title="🕒 Подробная активность">
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {analytics.recentActivity.map((activity, index) => (
+              {analytics?.recentActivity?.map((activity: any, index: number) => (
                 <div key={index} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                   <div className="flex-1">
@@ -199,7 +173,7 @@ const AnalyticsPage: React.FC = () => {
 
           <Modal open={showBotsModal} onClose={() => setShowBotsModal(false)} title="🏆 Детальная статистика ботов">
             <div className="space-y-4">
-              {analytics.topBots.map((bot, index) => (
+              {analytics?.topBots?.map((bot: any, index: number) => (
                 <div key={index} className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">{bot.name}</h3>
@@ -231,7 +205,7 @@ const AnalyticsPage: React.FC = () => {
           <Modal open={showYearModal} onClose={() => setShowYearModal(false)} title="📅 Активность за год">
             <div className="space-y-4">
               <div className="grid grid-cols-12 gap-2 h-40">
-                {analytics.monthlyStats.messages.map((value, index) => (
+                {analytics?.monthlyStats?.messages?.map((value: number, index: number) => (
                   <div key={index} className="flex flex-col justify-end items-center">
                     <div className="text-xs font-bold text-blue-600 mb-1">{value}</div>
                     <div 
@@ -245,19 +219,19 @@ const AnalyticsPage: React.FC = () => {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <div className="text-lg font-bold text-blue-600">
-                    {analytics.monthlyStats.messages.reduce((a, b) => a + b, 0)}
+                    {analytics?.monthlyStats?.messages?.reduce((a: number, b: number) => a + b, 0) || 0}
                   </div>
                   <div className="text-xs text-blue-700">Всего сообщений</div>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
                   <div className="text-lg font-bold text-green-600">
-                    {analytics.monthlyStats.users.reduce((a, b) => a + b, 0)}
+                    {analytics?.monthlyStats?.users?.reduce((a: number, b: number) => a + b, 0) || 0}
                   </div>
                   <div className="text-xs text-green-700">Всего пользователей</div>
                 </div>
                 <div className="p-3 bg-purple-50 rounded-lg">
                   <div className="text-lg font-bold text-purple-600">
-                    {Math.round(analytics.monthlyStats.messages.reduce((a, b) => a + b, 0) / 12)}
+                    {Math.round((analytics?.monthlyStats?.messages?.reduce((a: number, b: number) => a + b, 0) || 0) / 12)}
                   </div>
                   <div className="text-xs text-purple-700">Среднее в месяц</div>
                 </div>
@@ -288,7 +262,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-blue-600">{analytics.overview.totalBots}</div>
+              <div className="text-2xl font-bold text-blue-600">{analytics?.overview?.totalBots || 'N/A'}</div>
               <div className="text-sm text-blue-700">🤖 {t('bots')}</div>
             </div>
             <div className="text-3xl">🤖</div>
@@ -298,7 +272,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="bg-green-50 p-6 rounded-xl border border-green-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-green-600">{analytics.overview.activeTickets}</div>
+              <div className="text-2xl font-bold text-green-600">{analytics?.overview?.activeTickets || 'N/A'}</div>
               <div className="text-sm text-green-700">🎫 {t('tickets')}</div>
             </div>
             <div className="text-3xl">🎫</div>
@@ -308,7 +282,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-purple-600">{analytics.overview.totalMessages}</div>
+              <div className="text-2xl font-bold text-purple-600">{analytics?.overview?.totalMessages || 'N/A'}</div>
               <div className="text-sm text-purple-700">💬 {t('messages')}</div>
             </div>
             <div className="text-3xl">💬</div>
@@ -318,7 +292,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="bg-orange-50 p-6 rounded-xl border border-orange-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-orange-600">{analytics.overview.totalUsers}</div>
+              <div className="text-2xl font-bold text-orange-600">{analytics?.overview?.totalUsers || 'N/A'}</div>
               <div className="text-sm text-orange-700">👥 {t('users')}</div>
             </div>
             <div className="text-3xl">👥</div>
@@ -328,7 +302,7 @@ const AnalyticsPage: React.FC = () => {
         <div className="bg-cyan-50 p-6 rounded-xl border border-cyan-200">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold text-cyan-600">{analytics.overview.uptime}%</div>
+              <div className="text-2xl font-bold text-cyan-600">{analytics?.overview?.uptime || 'N/A'}%</div>
               <div className="text-sm text-cyan-700">⚡ {t('uptime')}</div>
             </div>
             <div className="text-3xl">⚡</div>
@@ -343,7 +317,7 @@ const AnalyticsPage: React.FC = () => {
             🏆 {t('topBotsByActivity')}
           </h3>
           <div className="space-y-4">
-            {analytics.topBots.map((bot, index) => (
+            {analytics?.topBots?.map((bot: any, index: number) => (
               <div key={index} className="flex items-center justify-between bg-white p-4 rounded-lg">
                 <div>
                   <div className="font-semibold">{bot.name}</div>
@@ -364,7 +338,7 @@ const AnalyticsPage: React.FC = () => {
             🕒 {t('recentActivity')}
           </h3>
           <div className="space-y-3">
-            {analytics.recentActivity.map((activity, index) => (
+            {analytics?.recentActivity?.map((activity: any, index: number) => (
               <div key={index} className="flex items-start gap-3 bg-white p-3 rounded-lg">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <div>
@@ -381,7 +355,7 @@ const AnalyticsPage: React.FC = () => {
       <div className="mt-8 bg-gray-50 p-6 rounded-xl">
         <h3 className="text-xl font-semibold mb-4">📈 {t('activityLast12Months')}</h3>
         <div className="grid grid-cols-12 gap-2 h-32">
-          {analytics.monthlyStats.messages.map((value, index) => (
+          {analytics?.monthlyStats?.messages?.map((value: number, index: number) => (
             <div key={index} className="flex flex-col justify-end">
               <div 
                 className="bg-blue-500 rounded-t"
